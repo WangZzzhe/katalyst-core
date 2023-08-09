@@ -28,14 +28,16 @@ type ControllersOptions struct {
 	*KCCOptions
 	*SPDOptions
 	*LifeCycleOptions
+	*OvercommitOptions
 }
 
 func NewControllersOptions() *ControllersOptions {
 	return &ControllersOptions{
-		VPAOptions:       NewVPAOptions(),
-		KCCOptions:       NewKCCOptions(),
-		SPDOptions:       NewSPDOptions(),
-		LifeCycleOptions: NewLifeCycleOptions(),
+		VPAOptions:        NewVPAOptions(),
+		KCCOptions:        NewKCCOptions(),
+		SPDOptions:        NewSPDOptions(),
+		LifeCycleOptions:  NewLifeCycleOptions(),
+		OvercommitOptions: NewOvercommitOptions(),
 	}
 }
 
@@ -44,6 +46,7 @@ func (o *ControllersOptions) AddFlags(fss *cliflag.NamedFlagSets) {
 	o.KCCOptions.AddFlags(fss)
 	o.SPDOptions.AddFlags(fss)
 	o.LifeCycleOptions.AddFlags(fss)
+	o.OvercommitOptions.AddFlags(fss)
 }
 
 // ApplyTo fills up config with options
@@ -54,6 +57,7 @@ func (o *ControllersOptions) ApplyTo(c *controllerconfig.ControllersConfiguratio
 	errList = append(errList, o.KCCOptions.ApplyTo(c.KCCConfig))
 	errList = append(errList, o.SPDOptions.ApplyTo(c.SPDConfig))
 	errList = append(errList, o.LifeCycleOptions.ApplyTo(c.LifeCycleConfig))
+	errList = append(errList, o.OvercommitOptions.ApplyTo(c.OvercommitConfig))
 	return errors.NewAggregate(errList)
 }
 
