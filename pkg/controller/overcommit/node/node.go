@@ -65,6 +65,7 @@ type NodeOvercommitController struct {
 	nodeSyncQueue   workqueue.RateLimitingInterface
 	workerCount     int
 	reconcilePeriod time.Duration
+	firstReconcile  bool
 
 	metricsEmitter metrics.MetricEmitter
 }
@@ -136,7 +137,7 @@ func (nc *NodeOvercommitController) Run() {
 
 	klog.Infof("caches are synced for %s controller", nodeOvercommitControllerName)
 
-	_, err := nc.matcher.Reconcile()
+	err := nc.matcher.Reconcile()
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("controller %s Reconcile fail: %v", nodeOvercommitControllerName, err))
 		return
@@ -144,26 +145,37 @@ func (nc *NodeOvercommitController) Run() {
 
 	klog.Infof("%s controller start process, workerCount: %v, reconcilePeriod: %v", nodeOvercommitControllerName, nc.workerCount, nc.reconcilePeriod)
 	for i := 0; i < nc.workerCount; i++ {
-		go wait.Until(nc.worker, time.Second, nc.ctx.Done())
-
 		go wait.Until(nc.nodeWorker, time.Second, nc.ctx.Done())
+
+		go wait.Until(nc.worker, time.Second, nc.ctx.Done())
 	}
+
+	nc.reconcile()
 
 	<-nc.ctx.Done()
 }
 
 func (nc *NodeOvercommitController) reconcile() {
 	go wait.Until(func() {
-		nodeNames, err := nc.matcher.Reconcile()
+		if nc.firstReconcile {
+			nc.firstReconcile = false
+			return
+		}
+		err := nc.matcher.Reconcile()
 		if err != nil {
 			klog.Error(err)
 			return
 		}
 
-		for _, nodeName := range nodeNames {
-			err = nc.setNodeOvercommitAnnotations(nodeName)
+		nodeList, err := nc.nodeLister.List(labels.Everything())
+		if err != nil {
+			klog.Error(err)
+			return
+		}
+		for _, node := range nodeList {
+			err = nc.setNodeOvercommitAnnotations(node.Name)
 			if err != nil {
-				klog.Errorf("% controller reconcile set node annotation fail: %v", err)
+				klog.Errorf("%s controller reconcile set node annotation fail: %v", nodeOvercommitControllerName, err)
 				continue
 			}
 		}
@@ -332,6 +344,7 @@ func (nc *NodeOvercommitController) setNodeOvercommitAnnotations(nodeName string
 			nodeAnnotations[annotationKey] = c
 		}
 	}
+	nodeCopy.Annotations = nodeAnnotations
 
 	return nc.nodeUpdater.PatchNode(nc.ctx, node, nodeCopy)
 }

@@ -38,7 +38,7 @@ type (
 )
 
 type Matcher interface {
-	Reconcile() ([]string, error)
+	Reconcile() error
 	MatchConfig(configName string) ([]string, error)
 	MatchNode(nodeName string)
 	GetConfig(nodeName string) string
@@ -62,8 +62,8 @@ type NodeMatchEvent struct {
 
 type DummyMatcher struct{}
 
-func (dm *DummyMatcher) Reconcile() ([]string, error) {
-	return []string{}, nil
+func (dm *DummyMatcher) Reconcile() error {
+	return nil
 }
 
 func (dm *DummyMatcher) MatchConfig(configName string) ([]string, error) {
@@ -101,10 +101,10 @@ type MatcherImpl struct {
 	nodeToConfig  NodeToConfig
 }
 
-func (i *MatcherImpl) Reconcile() ([]string, error) {
+func (i *MatcherImpl) Reconcile() error {
 	err := i.reconcileConfig()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	return i.reconcoleNode()
@@ -131,22 +131,21 @@ func (i *MatcherImpl) reconcileConfig() error {
 	return nil
 }
 
-func (i *MatcherImpl) reconcoleNode() ([]string, error) {
+func (i *MatcherImpl) reconcoleNode() error {
 	nodeList, err := i.nodeIndexer.ListNode(labels.Everything())
 	if err != nil {
 		klog.Errorf("list node fail: %v", err)
-		return nil, err
+		return err
 	}
 	nodeOvercommitConfigs, err := i.nocIndexer.ListNoc()
 	if err != nil {
 		klog.Errorf("list nodeOvercommitConfig fail: %v", err)
-		return nil, err
+		return err
 	}
 
 	i.Lock()
 	defer i.Unlock()
 
-	nodeNames := make([]string, 0)
 	for _, node := range nodeList {
 		configList := NocList{}
 		for _, config := range nodeOvercommitConfigs {
@@ -158,18 +157,16 @@ func (i *MatcherImpl) reconcoleNode() ([]string, error) {
 		if configList.Len() <= 0 {
 			if originalConfig != "" {
 				delete(i.nodeToConfig, node.Name)
-				nodeNames = append(nodeNames, node.Name)
 			}
 		} else {
 			sort.Sort(configList)
 			if originalConfig != configList[0].Name {
 				i.nodeToConfig[node.Name] = configList[0].Name
-				nodeNames = append(nodeNames, node.Name)
 			}
 		}
 	}
 
-	return nodeNames, nil
+	return nil
 }
 
 func (i *MatcherImpl) GetConfig(nodeName string) string {

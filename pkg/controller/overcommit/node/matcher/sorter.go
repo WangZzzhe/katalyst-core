@@ -27,7 +27,7 @@ func (nl NocList) Less(i, j int) bool {
 	tj := NodeOvercommitConfigType(nl[j])
 
 	if ti == tj {
-		return nl[i].CreationTimestamp.Before(&nl[j].CreationTimestamp)
+		return nl[j].CreationTimestamp.Before(&nl[i].CreationTimestamp)
 	}
 
 	return ti > tj
