@@ -499,8 +499,8 @@ func TestMatchNode(t *testing.T) {
 			}
 
 			for k, v := range tc.newNodeMap {
-				configName := tc.matcher.GetConfig(k)
-				assert.Equal(t, configName, v)
+				config := tc.matcher.GetConfig(k)
+				assert.Equal(t, config.Name, v)
 			}
 		})
 	}

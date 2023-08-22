@@ -34,14 +34,14 @@ import (
 
 type (
 	ConfigToNodes map[string]sets.String
-	NodeToConfig  map[string]string
+	NodeToConfig  map[string][]*v1alpha1.NodeOvercommitConfig
 )
 
 type Matcher interface {
 	Reconcile() error
 	MatchConfig(configName string) ([]string, error)
 	MatchNode(nodeName string)
-	GetConfig(nodeName string) string
+	GetConfig(nodeName string) *v1alpha1.NodeOvercommitConfig
 	DelNode(nodeName string)
 }
 
@@ -74,8 +74,8 @@ func (dm *DummyMatcher) MatchNode(nodeName string) {
 	return
 }
 
-func (dm *DummyMatcher) GetConfig(nodeName string) string {
-	return ""
+func (dm *DummyMatcher) GetConfig(nodeName string) *v1alpha1.NodeOvercommitConfig {
+	return nil
 }
 
 func (dm *DummyMatcher) DelNode(nodeName string) {}
@@ -86,7 +86,7 @@ func NewMatcher(nodeIndexer NodeIndexer, nocIndexer NocIndexer) *MatcherImpl {
 		nodeIndexer:   nodeIndexer,
 		nocIndexer:    nocIndexer,
 		configToNodes: make(map[string]sets.String),
-		nodeToConfig:  make(map[string]string),
+		nodeToConfig:  make(map[string][]*v1alpha1.NodeOvercommitConfig),
 	}
 }
 
@@ -153,26 +153,26 @@ func (i *MatcherImpl) reconcoleNode() error {
 				configList = append(configList, config)
 			}
 		}
-		originalConfig := i.nodeToConfig[node.Name]
+
 		if configList.Len() <= 0 {
-			if originalConfig != "" {
-				delete(i.nodeToConfig, node.Name)
-			}
+			delete(i.nodeToConfig, node.Name)
 		} else {
 			sort.Sort(configList)
-			if originalConfig != configList[0].Name {
-				i.nodeToConfig[node.Name] = configList[0].Name
-			}
+			i.nodeToConfig[node.Name] = configList
 		}
 	}
 
 	return nil
 }
 
-func (i *MatcherImpl) GetConfig(nodeName string) string {
+func (i *MatcherImpl) GetConfig(nodeName string) *v1alpha1.NodeOvercommitConfig {
 	i.RLock()
 	defer i.RUnlock()
-	return i.nodeToConfig[nodeName]
+	configs := i.nodeToConfig[nodeName]
+	if len(configs) == 0 {
+		return nil
+	}
+	return configs[0]
 }
 
 func (i *MatcherImpl) MatchConfig(configName string) ([]string, error) {
@@ -224,7 +224,7 @@ func (i *MatcherImpl) MatchNode(nodeName string) {
 		return
 	}
 
-	i.nodeToConfig[nodeName] = configList[0].Name
+	i.nodeToConfig[nodeName] = configList
 	return
 }
 

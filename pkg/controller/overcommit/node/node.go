@@ -323,11 +323,11 @@ func (nc *NodeOvercommitController) setNodeOvercommitAnnotations(nodeName string
 	var (
 		nodeOvercommitConfig = emptyOvercommitConfig()
 	)
-	configName := nc.matcher.GetConfig(nodeName)
-	if configName != "" {
-		nodeOvercommitConfig, err = nc.nodeOvercommitLister.Get(configName)
+	config := nc.matcher.GetConfig(nodeName)
+	if config != nil {
+		nodeOvercommitConfig, err = nc.nodeOvercommitLister.Get(config.Name)
 		if err != nil {
-			klog.Errorf("get nodeOvercommitConfig %s fail: %v", configName, err)
+			klog.Errorf("get nodeOvercommitConfig %s fail: %v", config.Name, err)
 			return err
 		}
 	}
