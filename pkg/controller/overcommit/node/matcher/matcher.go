@@ -42,6 +42,9 @@ type Matcher interface {
 	MatchConfig(configName string) ([]string, error)
 	MatchNode(nodeName string)
 	GetConfig(nodeName string) *v1alpha1.NodeOvercommitConfig
+	GetNodeToConfig(nodeName string) []*v1alpha1.NodeOvercommitConfig
+	ListNodeToConfig() map[string][]string
+	GetNodes(configName string) []string
 	DelNode(nodeName string)
 }
 
@@ -79,6 +82,18 @@ func (dm *DummyMatcher) GetConfig(nodeName string) *v1alpha1.NodeOvercommitConfi
 }
 
 func (dm *DummyMatcher) DelNode(nodeName string) {}
+
+func (dm *DummyMatcher) GetNodeToConfig(nodeName string) []*v1alpha1.NodeOvercommitConfig {
+	return nil
+}
+
+func (dm *DummyMatcher) ListNodeToConfig() map[string][]string {
+	return nil
+}
+
+func (dm *DummyMatcher) GetNodes(configName string) []string {
+	return nil
+}
 
 func NewMatcher(nodeIndexer NodeIndexer, nocIndexer NocIndexer) *MatcherImpl {
 	return &MatcherImpl{
@@ -236,6 +251,32 @@ func (i *MatcherImpl) DelNode(nodeName string) {
 	for key := range i.configToNodes {
 		i.configToNodes[key].Delete(nodeName)
 	}
+}
+
+func (i *MatcherImpl) GetNodeToConfig(nodeName string) []*v1alpha1.NodeOvercommitConfig {
+	i.RLock()
+	defer i.RUnlock()
+	return i.nodeToConfig[nodeName]
+}
+
+func (i *MatcherImpl) ListNodeToConfig() map[string][]string {
+	ret := make(map[string][]string)
+	i.RLock()
+	defer i.RUnlock()
+
+	for nodeName, configs := range i.nodeToConfig {
+		ret[nodeName] = make([]string, 0)
+		for i := range configs {
+			ret[nodeName] = append(ret[nodeName], configs[i].Name)
+		}
+	}
+	return ret
+}
+
+func (i *MatcherImpl) GetNodes(configName string) []string {
+	i.RLock()
+	defer i.RUnlock()
+	return i.configToNodes[configName].UnsortedList()
 }
 
 func (i *MatcherImpl) matchConfigNameToNodes(configName string) ([]string, error) {
