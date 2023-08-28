@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kubewharf/katalyst-api/pkg/apis/config/v1alpha1"
+	"github.com/kubewharf/katalyst-api/pkg/apis/overcommit/v1alpha1"
 	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/api/core/v1"

@@ -22,8 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"time"
 
-	configv1alpha1 "github.com/kubewharf/katalyst-api/pkg/apis/config/v1alpha1"
-	"github.com/kubewharf/katalyst-api/pkg/client/listers/config/v1alpha1"
+	configv1alpha1 "github.com/kubewharf/katalyst-api/pkg/apis/overcommit/v1alpha1"
+	"github.com/kubewharf/katalyst-api/pkg/client/listers/overcommit/v1alpha1"
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	katalyst_base "github.com/kubewharf/katalyst-core/cmd/base"
 	"github.com/kubewharf/katalyst-core/pkg/client/control"
@@ -78,7 +78,7 @@ func NewNodeOvercommitController(
 ) (*NodeOvercommitController, error) {
 
 	nodeInformer := controlCtx.KubeInformerFactory.Core().V1().Nodes()
-	nodeOvercommitInformer := controlCtx.InternalInformerFactory.Config().V1alpha1().NodeOvercommitConfigs()
+	nodeOvercommitInformer := controlCtx.InternalInformerFactory.Overcommit().V1alpha1().NodeOvercommitConfigs()
 	genericClient := controlCtx.Client
 
 	nodeOvercommitConfigController := &NodeOvercommitController{

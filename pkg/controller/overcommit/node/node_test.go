@@ -33,7 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kubewharf/katalyst-api/pkg/apis/config/v1alpha1"
+	"github.com/kubewharf/katalyst-api/pkg/apis/overcommit/v1alpha1"
 )
 
 func makeNoc(name string, cpuOvercommitRatio, memoryOvercommitRatio string) *v1alpha1.NodeOvercommitConfig {
@@ -273,7 +273,7 @@ func TestReconcile(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.initConfigs {
-				_, err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
+				_, err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
 				assert.NoError(t, err)
 			}
 
@@ -291,7 +291,7 @@ func TestReconcile(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.addConfigs {
-				_, err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
+				_, err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
 				assert.NoError(t, err)
 			}
 			for _, node := range tc.updateNodes {
@@ -299,7 +299,7 @@ func TestReconcile(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.updateConfigs {
-				_, err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Update(ctx, config, metav1.UpdateOptions{})
+				_, err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Update(ctx, config, metav1.UpdateOptions{})
 				assert.NoError(t, err)
 			}
 			for _, node := range tc.deleteNodes {
@@ -307,7 +307,7 @@ func TestReconcile(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.deleteConfigs {
-				err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Delete(ctx, config, metav1.DeleteOptions{})
+				err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Delete(ctx, config, metav1.DeleteOptions{})
 				assert.NoError(t, err)
 			}
 			time.Sleep(6 * time.Second)
@@ -349,7 +349,7 @@ func TestRun(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.initConfigs {
-				_, err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
+				_, err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
 				assert.NoError(t, err)
 			}
 
@@ -362,7 +362,7 @@ func TestRun(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.addConfigs {
-				_, err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
+				_, err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
 				assert.NoError(t, err)
 			}
 			for _, node := range tc.updateNodes {
@@ -370,7 +370,7 @@ func TestRun(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.updateConfigs {
-				_, err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Update(ctx, config, metav1.UpdateOptions{})
+				_, err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Update(ctx, config, metav1.UpdateOptions{})
 				assert.NoError(t, err)
 			}
 			for _, node := range tc.deleteNodes {
@@ -378,7 +378,7 @@ func TestRun(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			for _, config := range tc.deleteConfigs {
-				err = controlCtx.Client.InternalClient.ConfigV1alpha1().NodeOvercommitConfigs().Delete(ctx, config, metav1.DeleteOptions{})
+				err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Delete(ctx, config, metav1.DeleteOptions{})
 				assert.NoError(t, err)
 			}
 

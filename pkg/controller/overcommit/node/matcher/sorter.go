@@ -1,7 +1,7 @@
 package matcher
 
 import (
-	"github.com/kubewharf/katalyst-api/pkg/apis/config/v1alpha1"
+	"github.com/kubewharf/katalyst-api/pkg/apis/overcommit/v1alpha1"
 )
 
 type NocList []*v1alpha1.NodeOvercommitConfig

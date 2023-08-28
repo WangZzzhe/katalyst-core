@@ -3,7 +3,7 @@ package node
 import (
 	"fmt"
 
-	"github.com/kubewharf/katalyst-api/pkg/apis/config/v1alpha1"
+	"github.com/kubewharf/katalyst-api/pkg/apis/overcommit/v1alpha1"
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
 
