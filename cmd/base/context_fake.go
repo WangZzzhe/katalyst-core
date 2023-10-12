@@ -43,7 +43,6 @@ import (
 	workloadapis "github.com/kubewharf/katalyst-api/pkg/apis/workload/v1alpha1"
 	externalfake "github.com/kubewharf/katalyst-api/pkg/client/clientset/versioned/fake"
 	"github.com/kubewharf/katalyst-core/pkg/client"
-	"github.com/kubewharf/katalyst-core/pkg/config/agent/dynamic/crd"
 	"github.com/kubewharf/katalyst-core/pkg/config/generic"
 	"github.com/kubewharf/katalyst-core/pkg/util/credential"
 	"github.com/kubewharf/katalyst-core/pkg/util/credential/authorization"
@@ -77,12 +76,12 @@ var fakeDiscoveryClient = &fakedisco.FakeDiscovery{Fake: &coretesting.Fake{
 				{Name: "pods", Namespaced: true, Kind: "Pod"},
 			},
 		},
-		{
-			GroupVersion: v1alpha1.SchemeGroupVersion.String(),
-			APIResources: []metav1.APIResource{
-				{Name: v1alpha1.ResourceNameAdminQoSConfigurations, Namespaced: true, Kind: crd.ResourceKindAdminQoSConfiguration},
-			},
-		},
+		//{
+		//	GroupVersion: v1alpha1.SchemeGroupVersion.String(),
+		//	APIResources: []metav1.APIResource{
+		//		{Name: v1alpha1.ResourceNameAdminQoSConfigurations, Namespaced: true, Kind: crd.ResourceKindAdminQoSConfiguration},
+		//	},
+		//},
 	},
 }}
 

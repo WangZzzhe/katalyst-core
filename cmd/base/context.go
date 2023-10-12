@@ -226,9 +226,9 @@ func (c *GenericContext) StartInformer(ctx context.Context) {
 	}
 
 	if c.KubeInformerFactory != nil {
-		if transformers, ok := native.GetPodTransformer(); ok && c.transformedInformerForPod {
-			_ = c.KubeInformerFactory.Core().V1().Pods().Informer().SetTransform(transformers)
-		}
+		//if transformers, ok := native.GetPodTransformer(); ok && c.transformedInformerForPod {
+		//	_ = c.KubeInformerFactory.Core().V1().Pods().Informer().SetTransform(transformers)
+		//}
 		c.KubeInformerFactory.Start(ctx.Done())
 	}
 

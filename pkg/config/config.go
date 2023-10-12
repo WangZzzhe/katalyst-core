@@ -20,8 +20,6 @@ limitations under the License.
 package config // import "github.com/kubewharf/katalyst-core/pkg/config"
 
 import (
-	"github.com/kubewharf/katalyst-core/pkg/config/agent"
-	"github.com/kubewharf/katalyst-core/pkg/config/controller"
 	"github.com/kubewharf/katalyst-core/pkg/config/generic"
 	"github.com/kubewharf/katalyst-core/pkg/config/metric"
 	"github.com/kubewharf/katalyst-core/pkg/config/webhook"
@@ -38,25 +36,25 @@ type Configuration struct {
 	*webhook.WebhooksConfiguration
 
 	// those configurations are used by controllers
-	*controller.GenericControllerConfiguration
-	*controller.ControllersConfiguration
+	//*controller.GenericControllerConfiguration
+	//*controller.ControllersConfiguration
 
 	// those configurations are used by metric
 	*metric.GenericMetricConfiguration
 	*metric.CustomMetricConfiguration
 
-	*agent.AgentConfiguration
+	//*agent.AgentConfiguration
 }
 
 func NewConfiguration() *Configuration {
 	return &Configuration{
-		GenericConfiguration:           generic.NewGenericConfiguration(),
-		GenericWebhookConfiguration:    webhook.NewGenericWebhookConfiguration(),
-		WebhooksConfiguration:          webhook.NewWebhooksConfiguration(),
-		GenericControllerConfiguration: controller.NewGenericControllerConfiguration(),
-		ControllersConfiguration:       controller.NewControllersConfiguration(),
-		GenericMetricConfiguration:     metric.NewGenericMetricConfiguration(),
-		CustomMetricConfiguration:      metric.NewCustomMetricConfiguration(),
-		AgentConfiguration:             agent.NewAgentConfiguration(),
+		GenericConfiguration:        generic.NewGenericConfiguration(),
+		GenericWebhookConfiguration: webhook.NewGenericWebhookConfiguration(),
+		WebhooksConfiguration:       webhook.NewWebhooksConfiguration(),
+		//GenericControllerConfiguration: controller.NewGenericControllerConfiguration(),
+		//ControllersConfiguration:       controller.NewControllersConfiguration(),
+		GenericMetricConfiguration: metric.NewGenericMetricConfiguration(),
+		CustomMetricConfiguration:  metric.NewCustomMetricConfiguration(),
+		//AgentConfiguration:             agent.NewAgentConfiguration(),
 	}
 }

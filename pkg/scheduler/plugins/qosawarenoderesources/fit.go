@@ -163,12 +163,12 @@ func newNativeFit(args *config.QoSAwareNodeResourcesFitArgs, h framework.Handle)
 }
 
 // PreFilter invoked at the prefilter extension point.
-func (f *Fit) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) (*framework.PreFilterResult, *framework.Status) {
+func (f *Fit) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) *framework.Status {
 	if !util.IsReclaimedPod(pod) {
-		return nil, nil
+		return nil
 	}
 	cycleState.Write(preFilterStateKey, computePodQoSResourceRequest(pod))
-	return nil, nil
+	return nil
 }
 
 // PreFilterExtensions returns prefilter extensions, pod add and remove.
