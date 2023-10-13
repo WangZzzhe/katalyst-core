@@ -21,41 +21,52 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	goruntime "runtime"
+	"time"
+
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"k8s.io/kubernetes/pkg/scheduler/algorithmprovider"
+
+	"k8s.io/component-base/metrics/legacyregistry"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 
 	"github.com/spf13/cobra"
+	eventsv1beta1 "k8s.io/api/events/v1beta1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	genericapifilters "k8s.io/apiserver/pkg/endpoints/filters"
+	"k8s.io/apiserver/pkg/endpoints/metrics"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/server"
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/server/mux"
 	"k8s.io/apiserver/pkg/server/routes"
-	"k8s.io/client-go/informers"
+	"k8s.io/apiserver/pkg/util/term"
 	"k8s.io/client-go/kubernetes/scheme"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/tools/leaderelection"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/cli/globalflag"
-	"k8s.io/component-base/configz"
 	"k8s.io/component-base/logs"
-	"k8s.io/component-base/metrics/legacyregistry"
-	"k8s.io/component-base/term"
 	"k8s.io/component-base/version"
 	"k8s.io/component-base/version/verflag"
 	"k8s.io/klog/v2"
 	scheduleroptions "k8s.io/kubernetes/cmd/kube-scheduler/app/options"
 	"k8s.io/kubernetes/pkg/scheduler"
 	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
-	"k8s.io/kubernetes/pkg/scheduler/apis/config/latest"
-	"k8s.io/kubernetes/pkg/scheduler/framework/runtime"
-	"k8s.io/kubernetes/pkg/scheduler/metrics/resources"
-	"k8s.io/kubernetes/pkg/scheduler/profile"
+	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
+	"k8s.io/kubernetes/pkg/util/configz"
+	utilflag "k8s.io/kubernetes/pkg/util/flag"
 
 	schedulerserverconfig "github.com/kubewharf/katalyst-core/cmd/katalyst-scheduler/app/config"
 	"github.com/kubewharf/katalyst-core/cmd/katalyst-scheduler/app/options"
@@ -68,7 +79,7 @@ func init() {
 }
 
 // Option configures a framework.Registry.
-type Option func(runtime.Registry) error
+type Option func(framework.Registry) error
 
 // NewSchedulerCommand creates a *cobra.Command object with default parameters and registryOptions
 func NewSchedulerCommand(registryOptions ...Option) *cobra.Command {
@@ -96,17 +107,26 @@ kube-scheduler is the reference implementation.
 		},
 	}
 
-	nfs := opts.Flags
+	nfs := opts.Flags()
 	verflag.AddFlags(nfs.FlagSet("global"))
-	globalflag.AddGlobalFlags(nfs.FlagSet("global"), cmd.Name(), logs.SkipLoggingConfigurationFlags())
+	globalflag.AddGlobalFlags(nfs.FlagSet("global"), cmd.Name())
 	fs := cmd.Flags()
 	for _, f := range nfs.FlagSets {
 		fs.AddFlagSet(f)
 	}
 	opts.QoSOptions.AddFlags(fs)
 
+	usageFmt := "Usage:\n  %s\n"
 	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
-	cliflag.SetUsageAndHelpFunc(cmd, *nfs, cols)
+	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
+		fmt.Fprintf(cmd.OutOrStderr(), usageFmt, cmd.UseLine())
+		cliflag.PrintSections(cmd.OutOrStderr(), nfs, cols)
+		return nil
+	})
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
+		cliflag.PrintSections(cmd.OutOrStdout(), nfs, cols)
+	})
 
 	if err := cmd.MarkFlagFilename("config", "yaml", "yml", "json"); err != nil {
 		klog.ErrorS(err, "Failed to mark flag filename")
@@ -118,14 +138,21 @@ kube-scheduler is the reference implementation.
 // runCommand runs the scheduler.
 func runCommand(cmd *cobra.Command, opts *options.Options, registryOptions ...Option) error {
 	verflag.PrintAndExitIfRequested()
+	utilflag.PrintFlags(cmd.Flags())
 
-	// Activate logging as soon as possible, after that
-	// show flags with the final logging configuration.
-	if err := opts.Logs.ValidateAndApply(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+	klog.InfoS("runCommand opts: ", "configFile", opts.ConfigFile, "WriteConfigTo", opts.WriteConfigTo, "kubeconfig", opts.ComponentConfig.ClientConnection.Kubeconfig)
+
+	if len(opts.WriteConfigTo) > 0 {
+		c := &schedulerserverconfig.Config{}
+		if err := opts.Options.ApplyTo(c.Config); err != nil {
+			return err
+		}
+		if err := scheduleroptions.WriteConfigFile(opts.WriteConfigTo, &c.Config.ComponentConfig); err != nil {
+			return err
+		}
+		klog.Infof("Wrote configuration to: %s\n", opts.WriteConfigTo)
+		return nil
 	}
-	cliflag.PrintFlags(cmd.Flags())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -158,7 +185,21 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 	}
 
 	// Prepare the event broadcaster.
-	cc.EventBroadcaster.StartRecordingToSink(ctx.Done())
+	// Prepare event clients.
+	if _, err := cc.Client.Discovery().ServerResourcesForGroupVersion(eventsv1beta1.SchemeGroupVersion.String()); err == nil {
+		cc.Broadcaster = events.NewBroadcaster(&events.EventSinkImpl{Interface: cc.EventClient.Events("")})
+		cc.Recorder = cc.Broadcaster.NewRecorder(scheme.Scheme, cc.ComponentConfig.SchedulerName)
+	} else {
+		recorder := cc.CoreBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: cc.ComponentConfig.SchedulerName})
+		cc.Recorder = record.NewEventRecorderAdapter(recorder)
+	}
+	// Prepare the event broadcaster.
+	if cc.Broadcaster != nil && cc.EventClient != nil {
+		cc.Broadcaster.StartRecordingToSink(ctx.Done())
+	}
+	if cc.CoreBroadcaster != nil && cc.CoreEventClient != nil {
+		cc.CoreBroadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: cc.CoreEventClient.Events("")})
+	}
 
 	// Setup healthz checks.
 	var checks []healthz.HealthChecker
@@ -167,20 +208,10 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 	}
 
 	waitingForLeader := make(chan struct{})
-	isLeader := func() bool {
-		select {
-		case _, ok := <-waitingForLeader:
-			// if channel is closed, we are leading
-			return !ok
-		default:
-			// channel is open, we are waiting for a leader
-			return false
-		}
-	}
 
 	// Start up the healthz server.
 	if cc.SecureServing != nil {
-		handler := buildHandlerChain(newHealthzAndMetricsHandler(&cc.ComponentConfig, cc.InformerFactory, isLeader, checks...), cc.Authentication.Authenticator, cc.Authorization.Authorizer)
+		handler := buildHandlerChain(newHealthzAndMetricsHandler(&cc.ComponentConfig), cc.Authentication.Authenticator, cc.Authorization.Authorizer)
 		// todo: handle stoppedCh and listenerStoppedCh returned by c.SecureServing.Serve
 		if _, err := cc.SecureServing.Serve(handler, 0, ctx.Done()); err != nil {
 			// fail early for secure handlers, removing the old error loop from above
@@ -188,26 +219,43 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 		}
 	}
 
+	go cc.PodInformer.Informer().Run(ctx.Done())
+
 	cc.InternalInformerFactory.Start(ctx.Done())
 	cc.InternalInformerFactory.WaitForCacheSync(ctx.Done())
 
 	cc.InformerFactory.Start(ctx.Done())
-	// DynInformerFactory can be nil in tests.
-	if cc.DynInformerFactory != nil {
-		cc.DynInformerFactory.Start(ctx.Done())
-	}
-
 	cc.InformerFactory.WaitForCacheSync(ctx.Done())
-	// DynInformerFactory can be nil in tests.
-	if cc.DynInformerFactory != nil {
-		cc.DynInformerFactory.WaitForCacheSync(ctx.Done())
-	}
 
 	// If leader election is enabled, runCommand via LeaderElector until done and exists.
 	if cc.LeaderElection != nil {
 		cc.LeaderElection.Callbacks = leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
 				close(waitingForLeader)
+				go func() {
+					time.Sleep(10 * time.Second)
+					pods, err := cc.Client.CoreV1().Pods("katalyst-system").List(v12.ListOptions{})
+					if err != nil {
+						klog.Errorf("list pods fail: %v", err)
+					} else {
+						for _, p := range pods.Items {
+							klog.Infof("list pod: %v", p.Name)
+						}
+					}
+
+					ss := sched.Cache().Snapshot()
+					for k, v := range ss.Nodes {
+						klog.Infof("sche cache node: %v", k)
+						if len(v.Pods()) == 0 {
+							klog.Infof("cache empty")
+						} else {
+							for _, p := range v.Pods() {
+								klog.Infof("node %v pod: %v", k, p.Name)
+							}
+						}
+					}
+				}()
+
 				sched.Run(ctx)
 			},
 			OnStoppedLeading: func() {
@@ -242,37 +290,38 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 // buildHandlerChain wraps the given handler with the standard filters.
 func buildHandlerChain(handler http.Handler, authn authenticator.Request, authz authorizer.Authorizer) http.Handler {
 	requestInfoResolver := &apirequest.RequestInfoFactory{}
-	failedHandler := genericapifilters.Unauthorized(scheme.Codecs)
+	failedHandler := genericapifilters.Unauthorized(legacyscheme.Codecs, false)
 
 	handler = genericapifilters.WithAuthorization(handler, authz, scheme.Codecs)
 	handler = genericapifilters.WithAuthentication(handler, authn, failedHandler, nil)
 	handler = genericapifilters.WithRequestInfo(handler, requestInfoResolver)
 	handler = genericapifilters.WithCacheControl(handler)
-	handler = genericfilters.WithHTTPLogging(handler)
-	handler = genericfilters.WithPanicRecovery(handler, requestInfoResolver)
+	handler = genericfilters.WithPanicRecovery(handler)
 
 	return handler
 }
 
-func installMetricHandler(pathRecorderMux *mux.PathRecorderMux, informers informers.SharedInformerFactory, isLeader func() bool) {
+func installMetricHandler(pathRecorderMux *mux.PathRecorderMux) {
 	configz.InstallHandler(pathRecorderMux)
-	pathRecorderMux.Handle("/metrics", legacyregistry.HandlerWithReset())
-
-	resourceMetricsHandler := resources.Handler(informers.Core().V1().Pods().Lister())
-	pathRecorderMux.HandleFunc("/metrics/resources", func(w http.ResponseWriter, req *http.Request) {
-		if !isLeader() {
+	defaultMetricsHandler := legacyregistry.Handler().ServeHTTP
+	pathRecorderMux.HandleFunc("/metrics", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == "DELETE" {
+			metrics.Reset()
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			io.WriteString(w, "metrics reset\n")
 			return
 		}
-		resourceMetricsHandler.ServeHTTP(w, req)
+		defaultMetricsHandler(w, req)
 	})
 }
 
 // newHealthzAndMetricsHandler creates a healthz server from the config, and will also
 // embed the metrics handler.
-func newHealthzAndMetricsHandler(config *kubeschedulerconfig.KubeSchedulerConfiguration, informers informers.SharedInformerFactory, isLeader func() bool, checks ...healthz.HealthChecker) http.Handler {
+func newHealthzAndMetricsHandler(config *kubeschedulerconfig.KubeSchedulerConfiguration, checks ...healthz.HealthChecker) http.Handler {
 	pathRecorderMux := mux.NewPathRecorderMux("katalyst-scheduler")
 	healthz.InstallHandler(pathRecorderMux, checks...)
-	installMetricHandler(pathRecorderMux, informers, isLeader)
+	installMetricHandler(pathRecorderMux)
 	if config.EnableProfiling {
 		routes.Profiling{}.Install(pathRecorderMux)
 		if config.EnableContentionProfiling {
@@ -283,28 +332,16 @@ func newHealthzAndMetricsHandler(config *kubeschedulerconfig.KubeSchedulerConfig
 	return pathRecorderMux
 }
 
-func getRecorderFactory(cc *schedulerserverconfig.CompletedConfig) profile.RecorderFactory {
-	return func(name string) events.EventRecorder {
-		return cc.EventBroadcaster.NewRecorder(name)
-	}
-}
-
 // WithPlugin creates an Option based on plugin name and factory. Please don't remove this function: it is used to register out-of-tree plugins,
 // hence there are no references to it from the kubernetes scheduler code base.
-func WithPlugin(name string, factory runtime.PluginFactory) Option {
-	return func(registry runtime.Registry) error {
+func WithPlugin(name string, factory framework.PluginFactory) Option {
+	return func(registry framework.Registry) error {
 		return registry.Register(name, factory)
 	}
 }
 
 // Setup creates a completed config and a scheduler ba, sed on the command args and options
 func Setup(ctx context.Context, opts *options.Options, outOfTreeRegistryOptions ...Option) (*schedulerserverconfig.CompletedConfig, *scheduler.Scheduler, error) {
-	if cfg, err := latest.Default(); err != nil {
-		return nil, nil, err
-	} else {
-		opts.ComponentConfig = cfg
-	}
-
 	if errs := opts.Validate(); len(errs) > 0 {
 		return nil, nil, utilerrors.NewAggregate(errs)
 	}
@@ -318,40 +355,37 @@ func Setup(ctx context.Context, opts *options.Options, outOfTreeRegistryOptions 
 	// Get the completed config
 	cc := c.Complete()
 
-	outOfTreeRegistry := make(runtime.Registry)
+	klog.InfoS("setup cc: ", "name", cc.ComponentConfig.SchedulerName, "plugins", len(cc.ComponentConfig.Plugins.Filter.Enabled), "args", len(cc.ComponentConfig.PluginConfig),
+		"leName", cc.LeaderElection.Name, "leId", cc.LeaderElection.Lock.Identity(), "leDe", cc.LeaderElection.Lock.Describe())
+
+	algorithmprovider.ApplyFeatureGates()
+
+	outOfTreeRegistry := make(framework.Registry)
 	for _, option := range outOfTreeRegistryOptions {
 		if err := option(outOfTreeRegistry); err != nil {
 			return nil, nil, err
 		}
 	}
 
-	recorderFactory := getRecorderFactory(&cc)
-	completedProfiles := make([]kubeschedulerconfig.KubeSchedulerProfile, 0)
 	// Create the scheduler.
 	sched, err := scheduler.New(cc.Client,
 		cc.InformerFactory,
-		cc.DynInformerFactory,
-		recorderFactory,
+		cc.PodInformer,
+		cc.Recorder,
 		ctx.Done(),
-		scheduler.WithComponentConfigVersion(cc.ComponentConfig.TypeMeta.APIVersion),
-		scheduler.WithKubeConfig(cc.KubeConfig),
-		scheduler.WithProfiles(cc.ComponentConfig.Profiles...),
+		scheduler.WithName(cc.ComponentConfig.SchedulerName),
+		scheduler.WithAlgorithmSource(cc.ComponentConfig.AlgorithmSource),
+		scheduler.WithHardPodAffinitySymmetricWeight(cc.ComponentConfig.HardPodAffinitySymmetricWeight),
+		scheduler.WithPreemptionDisabled(cc.ComponentConfig.DisablePreemption),
 		scheduler.WithPercentageOfNodesToScore(cc.ComponentConfig.PercentageOfNodesToScore),
+		scheduler.WithBindTimeoutSeconds(cc.ComponentConfig.BindTimeoutSeconds),
 		scheduler.WithFrameworkOutOfTreeRegistry(outOfTreeRegistry),
+		scheduler.WithFrameworkPlugins(cc.ComponentConfig.Plugins),
+		scheduler.WithFrameworkPluginConfig(cc.ComponentConfig.PluginConfig),
 		scheduler.WithPodMaxBackoffSeconds(cc.ComponentConfig.PodMaxBackoffSeconds),
 		scheduler.WithPodInitialBackoffSeconds(cc.ComponentConfig.PodInitialBackoffSeconds),
-		// scheduler.WithPodMaxInUnschedulablePodsDuration(cc.PodMaxInUnschedulablePodsDuration),
-		scheduler.WithExtenders(cc.ComponentConfig.Extenders...),
-		scheduler.WithParallelism(cc.ComponentConfig.Parallelism),
-		scheduler.WithBuildFrameworkCapturer(func(profile kubeschedulerconfig.KubeSchedulerProfile) {
-			// Profiles are processed during Framework instantiation to set default plugins and configurations. Capturing them for logging
-			completedProfiles = append(completedProfiles, profile)
-		}),
 	)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err := scheduleroptions.LogOrWriteConfig(opts.WriteConfigTo, &cc.ComponentConfig, completedProfiles); err != nil {
 		return nil, nil, err
 	}
 

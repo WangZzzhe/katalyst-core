@@ -22,16 +22,6 @@ import (
 	"net/http/pprof"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/metadata/metadatainformer"
-	"k8s.io/client-go/tools/events"
-	"k8s.io/klog/v2"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/dynamicmapper"
-
 	"github.com/kubewharf/katalyst-api/pkg/client/informers/externalversions"
 	"github.com/kubewharf/katalyst-core/pkg/client"
 	"github.com/kubewharf/katalyst-core/pkg/config/generic"
@@ -41,8 +31,14 @@ import (
 	"github.com/kubewharf/katalyst-core/pkg/util/credential"
 	"github.com/kubewharf/katalyst-core/pkg/util/credential/authorization"
 	"github.com/kubewharf/katalyst-core/pkg/util/general"
-	"github.com/kubewharf/katalyst-core/pkg/util/native"
 	"github.com/kubewharf/katalyst-core/pkg/util/process"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/metadata/metadatainformer"
+	"k8s.io/klog"
 )
 
 const (
@@ -60,9 +56,9 @@ type GenericContext struct {
 
 	// those following components are shared by all generic components.
 	//nolint
-	BroadcastAdapter events.EventBroadcasterAdapter
-	Client           *client.GenericClientSet
-	EmitterPool      metricspool.MetricsEmitterPool
+	// BroadcastAdapter events.EventBroadcaster
+	Client      *client.GenericClientSet
+	EmitterPool metricspool.MetricsEmitterPool
 
 	// those following informer factories give access to informers for the component.
 	// actually, for agent, we should be cautious if we decide to start informers (
@@ -74,7 +70,6 @@ type GenericContext struct {
 	KubeInformerFactory     informers.SharedInformerFactory
 	InternalInformerFactory externalversions.SharedInformerFactory
 	DynamicInformerFactory  dynamicinformer.DynamicSharedInformerFactory
-	DynamicResourcesManager *native.DynamicResourcesManager
 
 	// if we want to support for transformed informer for a certain object,
 	// it must be enabled transparently
@@ -98,8 +93,6 @@ func NewGenericContext(
 		kubeInformerFactory     informers.SharedInformerFactory
 		internalInformerFactory externalversions.SharedInformerFactory
 		dynamicInformerFactory  dynamicinformer.DynamicSharedInformerFactory
-		mapper                  *dynamicmapper.RegeneratingDiscoveryRESTMapper
-		dynamicResourceManager  *native.DynamicResourcesManager
 	)
 
 	// agent no need initialize informer
@@ -123,20 +116,6 @@ func NewGenericContext(
 			metav1.NamespaceAll, func(options *metav1.ListOptions) {
 				options.LabelSelector = labelSelector
 			})
-
-		mapper, err = dynamicmapper.NewRESTMapper(clientSet.DiscoveryClient, time.Minute)
-		if err != nil {
-			return nil, err
-		}
-
-		dynamicResourceManager, err = native.NewDynamicResourcesManager(dynamicResources, mapper, dynamicInformerFactory)
-		if err != nil {
-			return nil, err
-		}
-
-		if component == consts.KatalystComponentMetric {
-			clientSet.BuildMetricClient(mapper)
-		}
 	}
 
 	mux := http.NewServeMux()
@@ -148,7 +127,7 @@ func NewGenericContext(
 	// CreateEventRecorder create a v1 event (k8s 1.19 or later supported) recorder,
 	// which uses discovery client to check whether api server support v1 event, if not,
 	// it will use corev1 event recorder and wrap it with a v1 event recorder adapter.
-	broadcastAdapter := events.NewEventBroadcasterAdapter(clientSet.KubeClient)
+	// broadcastAdapter := events.NewEventBroadcasterAdapter(clientSet.KubeClient)
 
 	httpHandler := process.NewHTTPHandler(genericConf.GenericEndpointHandleChains, []string{healthZPath, pprofPrefix})
 
@@ -176,16 +155,15 @@ func NewGenericContext(
 			Handler: httpHandler.WithHandleChain(mux),
 			Addr:    genericConf.GenericEndpoint,
 		},
-		healthChecker:             NewHealthzChecker(),
-		DisabledByDefault:         disabledByDefault,
-		MetaInformerFactory:       metaInformerFactory,
-		KubeInformerFactory:       kubeInformerFactory,
-		InternalInformerFactory:   internalInformerFactory,
-		DynamicInformerFactory:    dynamicInformerFactory,
-		BroadcastAdapter:          broadcastAdapter,
+		healthChecker:           NewHealthzChecker(),
+		DisabledByDefault:       disabledByDefault,
+		MetaInformerFactory:     metaInformerFactory,
+		KubeInformerFactory:     kubeInformerFactory,
+		InternalInformerFactory: internalInformerFactory,
+		DynamicInformerFactory:  dynamicInformerFactory,
+		// BroadcastAdapter:          broadcastAdapter,
 		Client:                    clientSet,
 		EmitterPool:               metricspool.NewCustomMetricsEmitterPool(emitterPool),
-		DynamicResourcesManager:   dynamicResourceManager,
 		transformedInformerForPod: genericConf.TransformedInformerForPod,
 	}
 
@@ -211,7 +189,7 @@ func (c *GenericContext) Run(ctx context.Context) {
 	c.httpHandler.Run(ctx)
 	c.healthChecker.Run(ctx)
 	c.EmitterPool.Run(ctx)
-	c.BroadcastAdapter.StartRecordingToSink(ctx.Done())
+	// c.BroadcastAdapter.StartRecordingToSink(ctx.Done())
 	go func() {
 		klog.Fatal(c.ListenAndServe())
 		<-ctx.Done()
@@ -238,10 +216,6 @@ func (c *GenericContext) StartInformer(ctx context.Context) {
 
 	if c.DynamicInformerFactory != nil {
 		c.DynamicInformerFactory.Start(ctx.Done())
-	}
-
-	if c.DynamicResourcesManager != nil {
-		c.DynamicResourcesManager.Run(ctx)
 	}
 }
 

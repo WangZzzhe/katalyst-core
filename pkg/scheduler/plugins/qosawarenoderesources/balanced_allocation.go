@@ -23,10 +23,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
-	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/feature"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
+	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 
 	"github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config"
 	"github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config/validation"
@@ -37,9 +34,8 @@ import (
 // BalancedAllocation is a score plugin that calculates the difference between the cpu and memory fraction
 // of capacity, and prioritizes the host based on how close the two metrics are to each other.
 type BalancedAllocation struct {
-	handle framework.Handle
+	handle framework.FrameworkHandle
 	resourceAllocationScorer
-	nativeBalancedAllocation *noderesources.BalancedAllocation
 }
 
 var _ = framework.ScorePlugin(&BalancedAllocation{})
@@ -57,7 +53,7 @@ func (ba *BalancedAllocation) Score(ctx context.Context, state *framework.CycleS
 	if util.IsReclaimedPod(pod) {
 		extendedNodeInfo, err := cache.GetCache().GetNodeInfo(nodeName)
 		if err != nil {
-			return 0, framework.AsStatus(fmt.Errorf("getting node %q error: %w", nodeName, err))
+			return 0, framework.NewStatus(framework.Error, fmt.Sprintf("getting node %q error: %w", nodeName, err))
 		}
 
 		// ba.score favors nodes with balanced resource usage rate.
@@ -68,7 +64,7 @@ func (ba *BalancedAllocation) Score(ctx context.Context, state *framework.CycleS
 		return ba.score(pod, extendedNodeInfo, nodeName)
 	}
 
-	return ba.nativeBalancedAllocation.Score(ctx, state, pod, nodeName)
+	return framework.MaxNodeScore, nil
 }
 
 // ScoreExtensions of the Score plugin.
@@ -77,10 +73,10 @@ func (ba *BalancedAllocation) ScoreExtensions() framework.ScoreExtensions {
 }
 
 // NewBalancedAllocation initializes a new plugin and returns it.
-func NewBalancedAllocation(baArgs runtime.Object, h framework.Handle) (framework.Plugin, error) {
-	args, ok := baArgs.(*config.QoSAwareNodeResourcesBalancedAllocationArgs)
-	if !ok {
-		return nil, fmt.Errorf("want args to be of type NodeQoSResourcesBalancedAllocationArgs, got %T", baArgs)
+func NewBalancedAllocation(baArgs *runtime.Unknown, h framework.FrameworkHandle) (framework.Plugin, error) {
+	args := &config.QoSAwareNodeResourcesBalancedAllocationArgs{}
+	if err := framework.DecodeInto(baArgs, args); err != nil {
+		return nil, err
 	}
 
 	if err := validation.ValidateQoSAwareNodeResourcesBalancedAllocationArgs(nil, args); err != nil {
@@ -92,11 +88,6 @@ func NewBalancedAllocation(baArgs runtime.Object, h framework.Handle) (framework
 		resToWeightMap[v1.ResourceName(resource.Name)] = resource.Weight
 	}
 
-	nativeBalancedAllocation, err := newNativeBalancedAllocation(args, h)
-	if err != nil {
-		return nil, err
-	}
-
 	return &BalancedAllocation{
 		handle: h,
 		resourceAllocationScorer: resourceAllocationScorer{
@@ -105,26 +96,7 @@ func NewBalancedAllocation(baArgs runtime.Object, h framework.Handle) (framework
 			useRequested:        true,
 			resourceToWeightMap: resToWeightMap,
 		},
-		nativeBalancedAllocation: nativeBalancedAllocation,
 	}, nil
-}
-
-func newNativeBalancedAllocation(args *config.QoSAwareNodeResourcesBalancedAllocationArgs, h framework.Handle) (*noderesources.BalancedAllocation, error) {
-	nativeBalancedAllocationPlugin, err := noderesources.NewBalancedAllocation(
-		&kubeschedulerconfig.NodeResourcesBalancedAllocationArgs{
-			Resources: args.Resources,
-		}, h, feature.Features{},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	nativeBalancedAllocation, ok := nativeBalancedAllocationPlugin.(*noderesources.BalancedAllocation)
-	if !ok {
-		return nil, fmt.Errorf("assert nativeBalancedAllocation type error, got %T", nativeBalancedAllocationPlugin)
-	}
-
-	return nativeBalancedAllocation, nil
 }
 
 func balancedResourceScorer(requested, allocatable resourceToValueMap) int64 {

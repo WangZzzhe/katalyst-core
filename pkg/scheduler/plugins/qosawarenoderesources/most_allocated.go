@@ -17,7 +17,7 @@ limitations under the License.
 package qosawarenoderesources
 
 import (
-	"k8s.io/kubernetes/pkg/scheduler/framework"
+	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 )
 
 // mostResourceScorer favors nodes with most requested resources.

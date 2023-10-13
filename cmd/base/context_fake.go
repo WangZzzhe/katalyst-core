@@ -29,24 +29,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	fakedisco "k8s.io/client-go/discovery/fake"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/kubernetes/fake"
-	metaFake "k8s.io/client-go/metadata/fake"
 	coretesting "k8s.io/client-go/testing"
-
-	apis "github.com/kubewharf/katalyst-api/pkg/apis/autoscaling/v1alpha1"
-	"github.com/kubewharf/katalyst-api/pkg/apis/config/v1alpha1"
-	workloadapis "github.com/kubewharf/katalyst-api/pkg/apis/workload/v1alpha1"
-	externalfake "github.com/kubewharf/katalyst-api/pkg/client/clientset/versioned/fake"
-	"github.com/kubewharf/katalyst-core/pkg/client"
-	"github.com/kubewharf/katalyst-core/pkg/config/generic"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential/authorization"
-	"github.com/kubewharf/katalyst-core/pkg/util/native"
 )
 
 func nilObjectFilter(object []runtime.Object) []runtime.Object {
@@ -194,77 +179,4 @@ func versionedPatchReactor(tracker coretesting.ObjectTracker,
 
 	// return false to continue the next real patch reactor
 	return false, nil, nil
-}
-
-// prependVersionedUpdateAndPatchReactor adds a ResourceVersion change reactor to support
-// fake client CAS update or patch an object if its ResourceVersion already set
-func prependVersionedUpdateAndPatchReactor(fakeClient coretesting.FakeClient) {
-	fakeClient.PrependReactor("*", "*", func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
-		tracker := fakeClient.Tracker()
-		switch action := action.(type) {
-		case coretesting.UpdateActionImpl:
-			return versionedUpdateReactor(tracker, action)
-		case coretesting.PatchActionImpl:
-			return versionedPatchReactor(tracker, action)
-		default:
-			return false, nil, fmt.Errorf("no reaction implemented for %s", action)
-		}
-	})
-}
-
-func GenerateFakeGenericContext(objects ...[]runtime.Object) (*GenericContext, error) {
-	var kubeObjects, internalObjects, dynamicObjects, metaObjects []runtime.Object
-	if len(objects) > 0 {
-		kubeObjects = objects[0]
-	}
-	if len(objects) > 1 {
-		internalObjects = objects[1]
-	}
-	if len(objects) > 2 {
-		dynamicObjects = objects[2]
-	}
-	if len(objects) > 3 {
-		metaObjects = objects[3]
-	}
-
-	scheme := runtime.NewScheme()
-	utilruntime.Must(metav1.AddMetaToScheme(scheme))
-	utilruntime.Must(v1.AddToScheme(scheme))
-	utilruntime.Must(appsv1.AddToScheme(scheme))
-	utilruntime.Must(apis.AddToScheme(scheme))
-	utilruntime.Must(workloadapis.AddToScheme(scheme))
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
-
-	fakeMetaClient := metaFake.NewSimpleMetadataClient(scheme, nilObjectFilter(metaObjects)...)
-	fakeInternalClient := externalfake.NewSimpleClientset(nilObjectFilter(internalObjects)...)
-	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, nilObjectFilter(dynamicObjects)...)
-	fakeKubeClient := fake.NewSimpleClientset(nilObjectFilter(kubeObjects)...)
-
-	prependVersionedUpdateAndPatchReactor(fakeKubeClient)
-	prependVersionedUpdateAndPatchReactor(fakeInternalClient)
-	prependVersionedUpdateAndPatchReactor(fakeDynamicClient)
-
-	clientSet := client.GenericClientSet{
-		MetaClient:      fakeMetaClient,
-		KubeClient:      fakeKubeClient,
-		InternalClient:  fakeInternalClient,
-		DynamicClient:   fakeDynamicClient,
-		DiscoveryClient: fakeDiscoveryClient,
-	}
-
-	var dynamicResources []string
-	for _, o := range nilObjectFilter(dynamicObjects) {
-		gvr, _ := meta.UnsafeGuessKindToResource(o.GetObjectKind().GroupVersionKind())
-		dynamicResources = append(dynamicResources, native.GenerateDynamicResourceByGVR(gvr))
-	}
-
-	genericConf := &generic.GenericConfiguration{
-		AuthConfiguration: &generic.AuthConfiguration{
-			AuthType:          credential.AuthTypeInsecure,
-			AccessControlType: authorization.AccessControlTypeInsecure,
-		},
-	}
-	controlCtx, err := NewGenericContext(&clientSet, "", dynamicResources,
-		sets.NewString(), genericConf, "")
-	return controlCtx, err
 }

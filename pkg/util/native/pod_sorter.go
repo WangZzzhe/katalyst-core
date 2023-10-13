@@ -19,8 +19,6 @@ package native
 import (
 	v1 "k8s.io/api/core/v1"
 
-	corev1helpers "k8s.io/component-helpers/scheduling/corev1"
-
 	"github.com/kubewharf/katalyst-core/pkg/util/general"
 )
 
@@ -48,14 +46,6 @@ func (pl *PodSourceList) SetSource(index int, p interface{}) {
 	pl.pods[index] = p.(*v1.Pod)
 }
 
-// PodPriorityCmpFunc sorts priority of pods with greater comparison
-func PodPriorityCmpFunc(i1, i2 interface{}) int {
-	priority1 := corev1helpers.PodPriority(i1.(*v1.Pod))
-	priority2 := corev1helpers.PodPriority(i2.(*v1.Pod))
-
-	return general.CmpInt32(priority1, priority2)
-}
-
 // PodCPURequestCmpFunc sorts cpu request of pods with less comparison
 func PodCPURequestCmpFunc(i1, i2 interface{}) int {
 	p1Request := SumUpPodRequestResources(i1.(*v1.Pod))
@@ -67,5 +57,4 @@ func PodCPURequestCmpFunc(i1, i2 interface{}) int {
 	return p1CPUQuantity.Cmp(p2CPUQuantity)
 }
 
-var _ general.CmpFunc = PodPriorityCmpFunc
 var _ general.CmpFunc = PodCPURequestCmpFunc

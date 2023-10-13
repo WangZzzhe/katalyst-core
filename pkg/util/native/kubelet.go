@@ -51,7 +51,7 @@ func GetAndUnmarshalForHttps(ctx context.Context, port int, nodeAddress, endpoin
 	bytes, err := discoveryClient.RESTClient().
 		Get().
 		Timeout(defaultTimeout).
-		Do(ctx).
+		Do().
 		Raw()
 	if err != nil {
 		return err

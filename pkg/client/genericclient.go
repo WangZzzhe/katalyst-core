@@ -30,13 +30,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	componentbaseconfig "k8s.io/component-base/config"
-	"k8s.io/metrics/pkg/client/custom_metrics"
 	customclient "k8s.io/metrics/pkg/client/custom_metrics"
 	cmfake "k8s.io/metrics/pkg/client/custom_metrics/fake"
-	"k8s.io/metrics/pkg/client/external_metrics"
 	externalclient "k8s.io/metrics/pkg/client/external_metrics"
 	emfake "k8s.io/metrics/pkg/client/external_metrics/fake"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/dynamicmapper"
 
 	clientset "github.com/kubewharf/katalyst-api/pkg/client/clientset/versioned"
 )
@@ -53,15 +50,6 @@ type GenericClientSet struct {
 
 	CustomClient   customclient.CustomMetricsClient
 	ExternalClient externalclient.ExternalMetricsClient
-}
-
-// BuildMetricClient builds kubernetes native metrics-clients; and metrics-clients
-// can't be build in init process, since discovery mapper will be initialized at the
-// same time, which is usually not needed for agents (to avoid too many connections).
-func (g *GenericClientSet) BuildMetricClient(mapper *dynamicmapper.RegeneratingDiscoveryRESTMapper) {
-	apiVersionsGetter := custom_metrics.NewAvailableAPIsGetter(g.KubeClient.Discovery())
-	g.CustomClient = custom_metrics.NewForConfig(g.cfg, mapper, apiVersionsGetter)
-	g.ExternalClient = external_metrics.NewForConfigOrDie(g.cfg)
 }
 
 // newForConfig creates a new clientSet for the given config.

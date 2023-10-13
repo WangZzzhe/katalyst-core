@@ -23,10 +23,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
-	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/feature"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
+	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
+	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 
 	"github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config"
 	"github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config/validation"
@@ -38,7 +37,6 @@ import (
 
 var _ framework.PreFilterPlugin = &Fit{}
 var _ framework.FilterPlugin = &Fit{}
-var _ framework.EnqueueExtensions = &Fit{}
 var _ framework.ScorePlugin = &Fit{}
 var _ framework.ReservePlugin = &Fit{}
 
@@ -52,27 +50,28 @@ const (
 )
 
 // nodeResourceStrategyTypeMap maps strategy to scorer implementation
-var nodeResourceStrategyTypeMap = map[kubeschedulerconfig.ScoringStrategyType]scorer{
-	kubeschedulerconfig.LeastAllocated: func(args *config.QoSAwareNodeResourcesFitArgs) *resourceAllocationScorer {
+var nodeResourceStrategyTypeMap = map[config.ScoringStrategyType]scorer{
+
+	config.LeastAllocated: func(args *config.QoSAwareNodeResourcesFitArgs) *resourceAllocationScorer {
 		resToWeightMap := resourcesToWeightMap(args.ScoringStrategy.ReclaimedResources)
 		return &resourceAllocationScorer{
-			Name:                string(kubeschedulerconfig.LeastAllocated),
+			Name:                string(config.LeastAllocated),
 			scorer:              leastResourceScorer(resToWeightMap),
 			resourceToWeightMap: resToWeightMap,
 		}
 	},
-	kubeschedulerconfig.MostAllocated: func(args *config.QoSAwareNodeResourcesFitArgs) *resourceAllocationScorer {
+	config.MostAllocated: func(args *config.QoSAwareNodeResourcesFitArgs) *resourceAllocationScorer {
 		resToWeightMap := resourcesToWeightMap(args.ScoringStrategy.ReclaimedResources)
 		return &resourceAllocationScorer{
-			Name:                string(kubeschedulerconfig.MostAllocated),
+			Name:                string(config.MostAllocated),
 			scorer:              mostResourceScorer(resToWeightMap),
 			resourceToWeightMap: resToWeightMap,
 		}
 	},
-	kubeschedulerconfig.RequestedToCapacityRatio: func(args *config.QoSAwareNodeResourcesFitArgs) *resourceAllocationScorer {
+	config.RequestedToCapacityRatio: func(args *config.QoSAwareNodeResourcesFitArgs) *resourceAllocationScorer {
 		resToWeightMap := resourcesToWeightMap(args.ScoringStrategy.ReclaimedResources)
 		return &resourceAllocationScorer{
-			Name:                string(kubeschedulerconfig.RequestedToCapacityRatio),
+			Name:                string(config.RequestedToCapacityRatio),
 			scorer:              requestedToCapacityRatioScorer(resToWeightMap, args.ScoringStrategy.ReclaimedRequestedToCapacityRatio.Shape),
 			resourceToWeightMap: resToWeightMap,
 		}
@@ -81,7 +80,7 @@ var nodeResourceStrategyTypeMap = map[kubeschedulerconfig.ScoringStrategyType]sc
 
 // Fit is a plugin that checks if a node has sufficient resources.
 type Fit struct {
-	handle framework.Handle
+	handle framework.FrameworkHandle
 	resourceAllocationScorer
 	nativeFit *noderesources.Fit
 }
@@ -107,10 +106,10 @@ func (f *Fit) Name() string {
 }
 
 // NewFit initializes a new plugin and returns it.
-func NewFit(plArgs runtime.Object, h framework.Handle) (framework.Plugin, error) {
-	args, ok := plArgs.(*config.QoSAwareNodeResourcesFitArgs)
-	if !ok {
-		return nil, fmt.Errorf("want args to be of type NodeQoSResourcesFitArgs, got %T", plArgs)
+func NewFit(plArgs *runtime.Unknown, h framework.FrameworkHandle) (framework.Plugin, error) {
+	args := &config.QoSAwareNodeResourcesFitArgs{}
+	if err := framework.DecodeInto(plArgs, args); err != nil {
+		return nil, err
 	}
 	if err := validation.ValidateQoSAwareNodeResourcesFitArgs(nil, args); err != nil {
 		return nil, err
@@ -126,40 +125,10 @@ func NewFit(plArgs runtime.Object, h framework.Handle) (framework.Plugin, error)
 		return nil, fmt.Errorf("scoring strategy %s is not supported", strategy)
 	}
 
-	nativeFit, err := newNativeFit(args, h)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Fit{
 		handle:                   h,
 		resourceAllocationScorer: *scorePlugin(args),
-		nativeFit:                nativeFit,
 	}, nil
-}
-
-func newNativeFit(args *config.QoSAwareNodeResourcesFitArgs, h framework.Handle) (*noderesources.Fit, error) {
-	scoringStrategy := &kubeschedulerconfig.ScoringStrategy{
-		Type:                     args.ScoringStrategy.Type,
-		Resources:                args.ScoringStrategy.Resources,
-		RequestedToCapacityRatio: args.ScoringStrategy.RequestedToCapacityRatio,
-	}
-
-	nativeFitPlugin, err := noderesources.NewFit(
-		&kubeschedulerconfig.NodeResourcesFitArgs{
-			ScoringStrategy: scoringStrategy,
-		}, h, feature.Features{},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	nativeFit, ok := nativeFitPlugin.(*noderesources.Fit)
-	if !ok {
-		return nil, fmt.Errorf("assert nativeFit type error, got %T", nativeFitPlugin)
-	}
-
-	return nativeFit, nil
 }
 
 // PreFilter invoked at the prefilter extension point.
@@ -235,29 +204,17 @@ func getPreFilterState(cycleState *framework.CycleState) (*preFilterState, error
 	return s, nil
 }
 
-// EventsToRegister returns the possible events that may make a Pod
-// failed by this plugin schedulable.
-// NOTE: if in-place-update (KEP 1287) gets implemented, then PodUpdate event
-// should be registered for this plugin since a Pod update may free up resources
-// that make other Pods schedulable.
-func (f *Fit) EventsToRegister() []framework.ClusterEvent {
-	return []framework.ClusterEvent{
-		{Resource: framework.Pod, ActionType: framework.Delete},
-		{Resource: framework.Node, ActionType: framework.Add},
-	}
-}
-
 // Filter invoked at the filter extension point.
 // Checks if a node has sufficient resources, such as cpu, memory, gpu, opaque int resources etc to run a pod.
 // It returns a list of insufficient resources, if empty, then the node has all the resources requested by the pod.
-func (f *Fit) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
+func (f *Fit) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *nodeinfo.NodeInfo) *framework.Status {
 	if !util.IsReclaimedPod(pod) {
 		return nil
 	}
 
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.NewStatus(framework.Error, err.Error())
 	}
 
 	insufficientResources := fitsRequest(s, nodeInfo)
@@ -268,7 +225,7 @@ func (f *Fit) Filter(ctx context.Context, cycleState *framework.CycleState, pod 
 		for i := range insufficientResources {
 			failureReasons = append(failureReasons, insufficientResources[i].Reason)
 		}
-		return framework.NewStatus(framework.Unschedulable, failureReasons...)
+		return framework.NewStatus(framework.Unschedulable, failureReasons[0])
 	}
 
 	return nil
@@ -285,7 +242,7 @@ type InsufficientResource struct {
 	Capacity  int64
 }
 
-func fitsRequest(podRequest *preFilterState, nodeInfo *framework.NodeInfo) []InsufficientResource {
+func fitsRequest(podRequest *preFilterState, nodeInfo *nodeinfo.NodeInfo) []InsufficientResource {
 	insufficientResources := make([]InsufficientResource, 0, 2)
 
 	if podRequest.ReclaimedMilliCPU == 0 &&
@@ -333,13 +290,13 @@ func (f *Fit) Score(ctx context.Context, state *framework.CycleState, pod *v1.Po
 	if util.IsReclaimedPod(pod) {
 		extendedNodeInfo, err := cache.GetCache().GetNodeInfo(nodeName)
 		if err != nil {
-			return 0, framework.AsStatus(fmt.Errorf("getting node %q error: %w", nodeName, err))
+			return 0, framework.NewStatus(framework.Error, fmt.Errorf("getting node %q error: %w", nodeName, err).Error())
 		}
 
 		return f.score(pod, extendedNodeInfo, nodeName)
 	}
 
-	return f.nativeFit.Score(ctx, state, pod, nodeName)
+	return framework.MaxNodeScore, nil
 }
 
 // Reserve is the functions invoked by the framework at "Reserve" extension point.

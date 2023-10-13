@@ -17,11 +17,9 @@ limitations under the License.
 package native
 
 import (
-	"fmt"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/cache"
 )
 
 type PodTransformerFunc func(src, dest *corev1.Pod)
@@ -33,29 +31,4 @@ func WithPodTransformer(f PodTransformerFunc) {
 	podTransformerMtx.Lock()
 	defer podTransformerMtx.Unlock()
 	podTransformers = append(podTransformers, f)
-}
-
-func GetPodTransformer() (cache.TransformFunc, bool) {
-	podTransformerMtx.RLock()
-	defer podTransformerMtx.RUnlock()
-
-	if len(podTransformers) == 0 {
-		return nil, false
-	}
-
-	return func(obj interface{}) (interface{}, error) {
-		pod, ok := obj.(*corev1.Pod)
-		if !ok {
-			return nil, fmt.Errorf("unexpected object type: %T", obj)
-		}
-
-		returnedPod := &corev1.Pod{
-			TypeMeta:   pod.TypeMeta,
-			ObjectMeta: pod.ObjectMeta,
-		}
-		for _, f := range podTransformers {
-			f(pod, returnedPod)
-		}
-		return returnedPod, nil
-	}, true
 }

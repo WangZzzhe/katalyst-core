@@ -62,7 +62,7 @@ func (s *secretBackedAccessControl) Verify(authInfo credential.AuthInfo, targetR
 }
 
 func (s *secretBackedAccessControl) updateAuthInfoFromSecret() {
-	secret, err := s.kubeClient.CoreV1().Secrets(s.namespace).Get(context.TODO(), s.name, metav1.GetOptions{})
+	secret, err := s.kubeClient.CoreV1().Secrets(s.namespace).Get(s.name, metav1.GetOptions{})
 	if err == nil {
 		newRule := make(AuthRule)
 		for subject, permissionStr := range secret.StringData {

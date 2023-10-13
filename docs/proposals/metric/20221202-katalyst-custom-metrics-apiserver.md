@@ -69,7 +69,7 @@ There are four main components in KCMS.
 - KCMS Server is actually an extended APIServer, and implements the native custom-metrics-apiserver interface. Native APIServer passes through metric requests to KCMS Server according to the registered APIService, and then KCMS Server proxies the requests to KCMS Store, and returns the responded data list back to Native APIServer.
 
 ### API
-KCMS implements the standard custom-metrics-apiserver interface, so users can use metricsClient to refer to those metrics without any extra efforts. For more information about custom-metrics-apiserver (including the basic concepts and common use cases), please refer to [sig-custom-apiserver](https://github.com/kubernetes-sigs/custom-metrics-apiserver).
+KCMS implements the standard custom-metrics-apiserver interface, so users can use metricsClient to refer to those metrics without any extra efforts. For more information about custom-metrics-apiserver (including the basic concepts and common use cases), please refer to [sig-custom-apiserver](https://sigs.k8s.io/custom-metrics-apiserver).
 ```
 type CustomMetricsProvider interface {
    // GetMetricByName fetches a particular metric for a particular object.

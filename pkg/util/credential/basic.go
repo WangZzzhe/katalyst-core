@@ -136,7 +136,7 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 }
 
 func (b *basicAuthCredential) updateAuthPairFromSecret() {
-	secret, err := b.kubeClient.CoreV1().Secrets(b.namespace).Get(context.TODO(), b.name, metav1.GetOptions{})
+	secret, err := b.kubeClient.CoreV1().Secrets(b.namespace).Get(b.name, metav1.GetOptions{})
 	if err != nil {
 		general.Errorf("get auth pair secret failed:%v", err)
 	} else {

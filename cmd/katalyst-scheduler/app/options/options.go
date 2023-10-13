@@ -19,6 +19,8 @@ package options
 import (
 	"fmt"
 
+	"k8s.io/klog/v2"
+
 	scheduleroptions "k8s.io/kubernetes/cmd/kube-scheduler/app/options"
 
 	"github.com/kubewharf/katalyst-api/pkg/client/informers/externalversions"
@@ -37,8 +39,13 @@ type Options struct {
 
 // NewOptions returns default scheduler app options.
 func NewOptions() *Options {
+	op, err := scheduleroptions.NewOptions()
+	if err != nil {
+		klog.Fatalf("unable to initialize command options: %v", err)
+	}
+
 	return &Options{
-		Options:    scheduleroptions.NewOptions(),
+		Options:    op,
 		QoSOptions: options.NewQoSOptions(),
 	}
 }
@@ -50,6 +57,7 @@ func (o *Options) Config() (*schedulerappconfig.Config, *generic.QoSConfiguratio
 		return nil, nil, err
 	}
 
+	klog.InfoS("options config: ", "le config resource", config.ComponentConfig.LeaderElection.ResourceName, "lede", config.LeaderElection.Lock.Describe())
 	qosConfig := generic.NewQoSConfiguration()
 	if err = o.QoSOptions.ApplyTo(qosConfig); err != nil {
 		return nil, nil, err

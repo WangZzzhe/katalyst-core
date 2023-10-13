@@ -21,7 +21,6 @@ package config // import "github.com/kubewharf/katalyst-core/pkg/config"
 
 import (
 	"github.com/kubewharf/katalyst-core/pkg/config/generic"
-	"github.com/kubewharf/katalyst-core/pkg/config/metric"
 	"github.com/kubewharf/katalyst-core/pkg/config/webhook"
 )
 
@@ -40,8 +39,8 @@ type Configuration struct {
 	//*controller.ControllersConfiguration
 
 	// those configurations are used by metric
-	*metric.GenericMetricConfiguration
-	*metric.CustomMetricConfiguration
+	//*metric.GenericMetricConfiguration
+	//*metric.CustomMetricConfiguration
 
 	//*agent.AgentConfiguration
 }
@@ -53,8 +52,8 @@ func NewConfiguration() *Configuration {
 		WebhooksConfiguration:       webhook.NewWebhooksConfiguration(),
 		//GenericControllerConfiguration: controller.NewGenericControllerConfiguration(),
 		//ControllersConfiguration:       controller.NewControllersConfiguration(),
-		GenericMetricConfiguration: metric.NewGenericMetricConfiguration(),
-		CustomMetricConfiguration:  metric.NewCustomMetricConfiguration(),
+		//GenericMetricConfiguration: metric.NewGenericMetricConfiguration(),
+		//CustomMetricConfiguration:  metric.NewCustomMetricConfiguration(),
 		//AgentConfiguration:             agent.NewAgentConfiguration(),
 	}
 }
