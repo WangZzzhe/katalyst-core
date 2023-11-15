@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/metric/inspector"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
@@ -34,6 +36,7 @@ import (
 	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/cnr"
 	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/kubeletconfig"
 	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/metric"
+	inspectortypes "github.com/kubewharf/katalyst-core/pkg/metaserver/agent/metric/inspector/types"
 	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/metric/malachite"
 	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/node"
 	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/pod"
@@ -93,7 +96,12 @@ func NewMetaAgent(conf *config.Configuration, clientSet *client.GenericClientSet
 	}
 
 	if conf.EnableMetricsFetcher {
-		metaAgent.MetricsFetcher = malachite.NewMalachiteMetricsFetcher(emitter, metaAgent, conf)
+		switch conf.MetricsFetcher {
+		case inspectortypes.Name:
+			metaAgent.MetricsFetcher = inspector.NewInspectorMetricsFetcher(emitter, metaAgent)
+		default:
+			metaAgent.MetricsFetcher = malachite.NewMalachiteMetricsFetcher(emitter, metaAgent, conf)
+		}
 	} else {
 		metaAgent.MetricsFetcher = metric.NewFakeMetricsFetcher(emitter)
 	}

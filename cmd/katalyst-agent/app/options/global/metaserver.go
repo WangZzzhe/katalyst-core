@@ -56,6 +56,7 @@ const (
 const (
 	defaultEnableMetricsFetcher = true
 	defaultEnableCNCFetcher     = true
+	defaultMetricsFetcher       = "malachite"
 )
 
 type MetaServerOptions struct {
@@ -83,6 +84,7 @@ type MetaServerOptions struct {
 	CheckpointManagerDir string
 
 	EnableMetricsFetcher bool
+	MetricsFetcher       string
 	EnableCNCFetcher     bool
 }
 
@@ -105,6 +107,7 @@ func NewMetaServerOptions() *MetaServerOptions {
 		KubeletPodCacheSyncBurstBulk:   defaultKubeletPodCacheSyncBurstBulk,
 		CheckpointManagerDir:           defaultCheckpointManagerDir,
 		EnableMetricsFetcher:           defaultEnableMetricsFetcher,
+		MetricsFetcher:                 defaultMetricsFetcher,
 		EnableCNCFetcher:               defaultEnableCNCFetcher,
 		KubeletConfigEndpoint:          defaultKubeletConfigURI,
 		KubeletPodsEndpoint:            defaultKubeletPodsEndpoint,
@@ -150,6 +153,8 @@ func (o *MetaServerOptions) AddFlags(fss *cliflag.NamedFlagSets) {
 		"The checkpoint manager directory")
 	fs.BoolVar(&o.EnableMetricsFetcher, "enable-metrics-fetcher", o.EnableMetricsFetcher,
 		"Whether to enable metrics fetcher")
+	fs.StringVar(&o.MetricsFetcher, "metrics-fetcher", o.MetricsFetcher,
+		"The metrics fetcher name")
 	fs.BoolVar(&o.EnableCNCFetcher, "enable-cnc-fetcher", o.EnableCNCFetcher,
 		"Whether to enable cnc fetcher")
 	fs.StringVar(&o.KubeletConfigEndpoint, "kubelet-config-endpoint", o.KubeletConfigEndpoint,
@@ -183,6 +188,7 @@ func (o *MetaServerOptions) ApplyTo(c *global.MetaServerConfiguration) error {
 	c.KubeletConfigEndpoint = o.KubeletConfigEndpoint
 	c.KubeletPodsEndpoint = o.KubeletPodsEndpoint
 	c.APIAuthTokenFile = o.APIAuthTokenFile
+	c.MetricsFetcher = o.MetricsFetcher
 
 	return nil
 }
