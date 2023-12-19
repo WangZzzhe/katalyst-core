@@ -22,6 +22,7 @@ import (
 	"net/http/pprof"
 	"time"
 
+	"github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/dynamicmapper"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -31,7 +32,6 @@ import (
 	"k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
 	aggregator "k8s.io/kube-aggregator/pkg/client/informers/externalversions"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/dynamicmapper"
 
 	"github.com/kubewharf/katalyst-api/pkg/client/informers/externalversions"
 	"github.com/kubewharf/katalyst-core/pkg/client"
@@ -240,9 +240,6 @@ func (c *GenericContext) StartInformer(ctx context.Context) {
 	}
 
 	if c.KubeInformerFactory != nil {
-		if transformers, ok := native.GetPodTransformer(); ok && c.transformedInformerForPod {
-			_ = c.KubeInformerFactory.Core().V1().Pods().Informer().SetTransform(transformers)
-		}
 		c.KubeInformerFactory.Start(ctx.Done())
 	}
 

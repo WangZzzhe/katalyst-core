@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/provider"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -36,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/metrics/pkg/apis/custom_metrics"
 	"k8s.io/metrics/pkg/apis/external_metrics"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/provider"
 
 	katalystbase "github.com/kubewharf/katalyst-core/cmd/base"
 	"github.com/kubewharf/katalyst-core/pkg/config/generic"

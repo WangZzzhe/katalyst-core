@@ -22,6 +22,7 @@ package client // import "github.com/kubewharf/katalyst-core/pkg/client"
 import (
 	"fmt"
 
+	"github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/dynamicmapper"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -37,7 +38,6 @@ import (
 	"k8s.io/metrics/pkg/client/external_metrics"
 	externalclient "k8s.io/metrics/pkg/client/external_metrics"
 	emfake "k8s.io/metrics/pkg/client/external_metrics/fake"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/dynamicmapper"
 
 	clientset "github.com/kubewharf/katalyst-api/pkg/client/clientset/versioned"
 )
