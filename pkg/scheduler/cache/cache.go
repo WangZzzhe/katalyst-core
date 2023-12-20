@@ -22,7 +22,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	"k8s.io/kubernetes/pkg/scheduler/framework"
+	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 
 	apis "github.com/kubewharf/katalyst-api/pkg/apis/node/v1alpha1"
 )
@@ -46,7 +46,7 @@ func GetCache() *extendedCache {
 }
 
 func (cache *extendedCache) AddPod(pod *v1.Pod) error {
-	key, err := framework.GetPodKey(pod)
+	key, err := nodeinfo.GetPodKey(pod)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (cache *extendedCache) AddPod(pod *v1.Pod) error {
 }
 
 func (cache *extendedCache) RemovePod(pod *v1.Pod) error {
-	key, err := framework.GetPodKey(pod)
+	key, err := nodeinfo.GetPodKey(pod)
 	if err != nil {
 		return err
 	}

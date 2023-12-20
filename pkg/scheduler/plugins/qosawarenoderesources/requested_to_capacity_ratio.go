@@ -19,9 +19,10 @@ package qosawarenoderesources
 import (
 	"math"
 
+	"k8s.io/kubernetes/pkg/scheduler/algorithm/priorities"
+
 	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
-	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
+	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 )
 
 const (
@@ -30,8 +31,8 @@ const (
 
 // buildRequestedToCapacityRatioScorerFunction allows users to apply bin packing
 // on core resources like CPU, Memory as well as extended resources like accelerators.
-func buildRequestedToCapacityRatioScorerFunction(scoringFunctionShape helper.FunctionShape, resourceToWeightMap resourceToWeightMap) func(resourceToValueMap, resourceToValueMap) int64 {
-	rawScoringFunction := helper.BuildBrokenLinearFunction(scoringFunctionShape)
+func buildRequestedToCapacityRatioScorerFunction(scoringFunctionShape priorities.FunctionShape, resourceToWeightMap resourceToWeightMap) func(resourceToValueMap, resourceToValueMap) int64 {
+	rawScoringFunction := buildBrokenLinearFunction(scoringFunctionShape)
 	resourceScoringFunction := func(requested, capacity int64) int64 {
 		if capacity == 0 || requested > capacity {
 			return rawScoringFunction(maxUtilization)
@@ -57,9 +58,9 @@ func buildRequestedToCapacityRatioScorerFunction(scoringFunctionShape helper.Fun
 }
 
 func requestedToCapacityRatioScorer(weightMap resourceToWeightMap, shape []kubeschedulerconfig.UtilizationShapePoint) func(resourceToValueMap, resourceToValueMap) int64 {
-	shapes := make([]helper.FunctionShapePoint, 0, len(shape))
+	shapes := make([]priorities.FunctionShapePoint, 0, len(shape))
 	for _, point := range shape {
-		shapes = append(shapes, helper.FunctionShapePoint{
+		shapes = append(shapes, priorities.FunctionShapePoint{
 			Utilization: int64(point.Utilization),
 			// MaxCustomPriorityScore may diverge from the max score used in the scheduler and defined by MaxNodeScore,
 			// therefore we need to scale the score returned by requested to capacity ratio to the score range
@@ -69,4 +70,30 @@ func requestedToCapacityRatioScorer(weightMap resourceToWeightMap, shape []kubes
 	}
 
 	return buildRequestedToCapacityRatioScorerFunction(shapes, weightMap)
+}
+
+// Creates a function which is built using linear segments. Segments are defined via shape array.
+// Shape[i].Utilization slice represents points on "utilization" axis where different segments meet.
+// Shape[i].Score represents function values at meeting points.
+//
+// function f(p) is defined as:
+//
+//	shape[0].Score for p < f[0].Utilization
+//	shape[i].Score for p == shape[i].Utilization
+//	shape[n-1].Score for p > shape[n-1].Utilization
+//
+// and linear between points (p < shape[i].Utilization)
+func buildBrokenLinearFunction(shape priorities.FunctionShape) func(int64) int64 {
+	n := len(shape)
+	return func(p int64) int64 {
+		for i := 0; i < n; i++ {
+			if p <= shape[i].Utilization {
+				if i == 0 {
+					return shape[0].Score
+				}
+				return shape[i-1].Score + (shape[i].Score-shape[i-1].Score)*(p-shape[i-1].Utilization)/(shape[i].Utilization-shape[i-1].Utilization)
+			}
+		}
+		return shape[n-1].Score
+	}
 }

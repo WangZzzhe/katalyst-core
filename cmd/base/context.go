@@ -28,10 +28,8 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/metadata/metadatainformer"
-	"k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
 	aggregator "k8s.io/kube-aggregator/pkg/client/informers/externalversions"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/dynamicmapper"
 
 	"github.com/kubewharf/katalyst-api/pkg/client/informers/externalversions"
 	"github.com/kubewharf/katalyst-core/pkg/client"
@@ -43,7 +41,6 @@ import (
 	"github.com/kubewharf/katalyst-core/pkg/util/credential"
 	"github.com/kubewharf/katalyst-core/pkg/util/credential/authorization"
 	"github.com/kubewharf/katalyst-core/pkg/util/general"
-	"github.com/kubewharf/katalyst-core/pkg/util/native"
 	"github.com/kubewharf/katalyst-core/pkg/util/process"
 )
 
@@ -62,9 +59,8 @@ type GenericContext struct {
 
 	// those following components are shared by all generic components.
 	//nolint
-	BroadcastAdapter events.EventBroadcasterAdapter
-	Client           *client.GenericClientSet
-	EmitterPool      metricspool.MetricsEmitterPool
+	Client      *client.GenericClientSet
+	EmitterPool metricspool.MetricsEmitterPool
 
 	// those following informer factories give access to informers for the component.
 	// actually, for agent, we should be cautious if we decide to start informers (
@@ -77,7 +73,6 @@ type GenericContext struct {
 	InternalInformerFactory   externalversions.SharedInformerFactory
 	DynamicInformerFactory    dynamicinformer.DynamicSharedInformerFactory
 	AggregatorInformerFactory aggregator.SharedInformerFactory
-	DynamicResourcesManager   *native.DynamicResourcesManager
 
 	// if we want to support for transformed informer for a certain object,
 	// it must be enabled transparently
@@ -103,8 +98,6 @@ func NewGenericContext(
 		internalInformerFactory   externalversions.SharedInformerFactory
 		dynamicInformerFactory    dynamicinformer.DynamicSharedInformerFactory
 		aggregatorInformerFactory aggregator.SharedInformerFactory
-		mapper                    *dynamicmapper.RegeneratingDiscoveryRESTMapper
-		dynamicResourceManager    *native.DynamicResourcesManager
 	)
 
 	// agent no need initialize informer
@@ -128,21 +121,6 @@ func NewGenericContext(
 			metav1.NamespaceAll, func(options *metav1.ListOptions) {
 				options.LabelSelector = labelSelector
 			})
-
-		mapper, err = dynamicmapper.NewRESTMapper(clientSet.DiscoveryClient, time.Minute)
-		if err != nil {
-			return nil, err
-		}
-
-		dynamicResourceManager, err = native.NewDynamicResourcesManager(dynamicResources, mapper, dynamicInformerFactory)
-		if err != nil {
-			return nil, err
-		}
-
-		if component == consts.KatalystComponentMetric {
-			clientSet.BuildMetricClient(mapper)
-			aggregatorInformerFactory = aggregator.NewSharedInformerFactory(clientSet.AggregatorClient, time.Hour*24)
-		}
 	}
 
 	mux := http.NewServeMux()
@@ -152,11 +130,6 @@ func NewGenericContext(
 	}
 
 	customMetricsEmitterPool := metricspool.NewCustomMetricsEmitterPool(emitterPool)
-
-	// CreateEventRecorder create a v1 event (k8s 1.19 or later supported) recorder,
-	// which uses discovery client to check whether api server support v1 event, if not,
-	// it will use corev1 event recorder and wrap it with a v1 event recorder adapter.
-	broadcastAdapter := events.NewEventBroadcasterAdapter(clientSet.KubeClient)
 
 	httpHandler := process.NewHTTPHandler(genericConf.GenericEndpointHandleChains, []string{healthZPath, debugPrefix},
 		genericConf.HttpStrictAuthentication, customMetricsEmitterPool.GetDefaultMetricsEmitter())
@@ -196,10 +169,8 @@ func NewGenericContext(
 		InternalInformerFactory:   internalInformerFactory,
 		DynamicInformerFactory:    dynamicInformerFactory,
 		AggregatorInformerFactory: aggregatorInformerFactory,
-		BroadcastAdapter:          broadcastAdapter,
 		Client:                    clientSet,
 		EmitterPool:               customMetricsEmitterPool,
-		DynamicResourcesManager:   dynamicResourceManager,
 		transformedInformerForPod: genericConf.TransformedInformerForPod,
 	}
 
@@ -225,7 +196,6 @@ func (c *GenericContext) Run(ctx context.Context) {
 	c.httpHandler.Run(ctx)
 	c.healthChecker.Run(ctx)
 	c.EmitterPool.Run(ctx)
-	c.BroadcastAdapter.StartRecordingToSink(ctx.Done())
 	go func() {
 		klog.Fatal(c.ListenAndServe())
 		<-ctx.Done()
@@ -240,9 +210,6 @@ func (c *GenericContext) StartInformer(ctx context.Context) {
 	}
 
 	if c.KubeInformerFactory != nil {
-		if transformers, ok := native.GetPodTransformer(); ok && c.transformedInformerForPod {
-			_ = c.KubeInformerFactory.Core().V1().Pods().Informer().SetTransform(transformers)
-		}
 		c.KubeInformerFactory.Start(ctx.Done())
 	}
 
@@ -252,10 +219,6 @@ func (c *GenericContext) StartInformer(ctx context.Context) {
 
 	if c.DynamicInformerFactory != nil {
 		c.DynamicInformerFactory.Start(ctx.Done())
-	}
-
-	if c.DynamicResourcesManager != nil {
-		c.DynamicResourcesManager.Run(ctx)
 	}
 
 	if c.AggregatorInformerFactory != nil {
