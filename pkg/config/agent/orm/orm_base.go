@@ -19,15 +19,19 @@ package orm
 import "time"
 
 type GenericORMConfiguration struct {
-	ORMRconcilePeriod   time.Duration
-	ORMResourceNamesMap map[string]string
-	ORMPodNotifyChanLen int
+	ORMRconcilePeriod     time.Duration
+	ORMResourceNamesMap   map[string]string
+	ORMPodNotifyChanLen   int
+	TopologyPolicyName    string
+	NumericAlignResources []string
 }
 
 func NewGenericORMConfiguration() *GenericORMConfiguration {
 	return &GenericORMConfiguration{
-		ORMRconcilePeriod:   time.Second * 5,
-		ORMResourceNamesMap: map[string]string{},
-		ORMPodNotifyChanLen: 10,
+		ORMRconcilePeriod:     time.Second * 5,
+		ORMResourceNamesMap:   map[string]string{},
+		ORMPodNotifyChanLen:   10,
+		TopologyPolicyName:    "none",
+		NumericAlignResources: []string{"cpu", "memory"},
 	}
 }
