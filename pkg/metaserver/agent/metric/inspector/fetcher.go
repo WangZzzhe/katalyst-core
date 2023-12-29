@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Katalyst Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package inspector
 
 import (
@@ -205,12 +221,18 @@ func (i *InspectorMetricsFetcher) processNodeMemoryData(nodeMemoryData []types.C
 		if !ok {
 			continue
 		}
-
-		i.MetricStore.SetNodeMetric(
-			metricName,
-			utilmetric.MetricData{Value: cell.Val, Time: &updateTime},
-		)
-
+		switch cell.Key {
+		case "memory_pgsteal_kswapd":
+			i.MetricStore.SetNodeMetric(
+				metricName,
+				utilmetric.MetricData{Value: cell.Val, Time: &updateTime},
+			)
+		default:
+			i.MetricStore.SetNodeMetric(
+				metricName,
+				utilmetric.MetricData{Value: float64(int(cell.Val) << 10), Time: &updateTime},
+			)
+		}
 	}
 }
 
@@ -266,21 +288,11 @@ func (i *InspectorMetricsFetcher) processNUMAMemoryData(NUMAMemoryData map[int][
 				continue
 			}
 
-			switch cell.Key {
-			case "memtotal", "memfree":
-				i.MetricStore.SetNumaMetric(
-					numaID,
-					metricName,
-					utilmetric.MetricData{Value: float64(int(cell.Val) << 10), Time: &updateTime},
-				)
-			default:
-				i.MetricStore.SetNumaMetric(
-					numaID,
-					metricName,
-					utilmetric.MetricData{Value: cell.Val, Time: &updateTime},
-				)
-			}
-
+			i.MetricStore.SetNumaMetric(
+				numaID,
+				metricName,
+				utilmetric.MetricData{Value: cell.Val, Time: &updateTime},
+			)
 		}
 	}
 }
@@ -288,7 +300,7 @@ func (i *InspectorMetricsFetcher) processNUMAMemoryData(NUMAMemoryData map[int][
 func (i *InspectorMetricsFetcher) processCoreCPUData(coreCPUData map[int][]types.Cell) {
 	updateTime := time.Now()
 
-	metricMap := types.MetricsMap[types.NodeCorePath]
+	metricMap := types.MetricsMap[types.NodeCPUPath]
 
 	for cpuID, coreData := range coreCPUData {
 		for _, cell := range coreData {
@@ -299,11 +311,19 @@ func (i *InspectorMetricsFetcher) processCoreCPUData(coreCPUData map[int][]types
 
 			switch cell.Key {
 			case "usage":
-				i.MetricStore.SetCPUMetric(
-					cpuID,
-					consts.MetricCPUUsageRatio,
-					utilmetric.MetricData{Value: cell.Val / 100.0, Time: &updateTime},
-				)
+				// node cpu usage if cpuID == -1
+				if cpuID == -1 {
+					i.MetricStore.SetNodeMetric(
+						consts.MetricCPUUsageRatio,
+						utilmetric.MetricData{Value: cell.Val / 100.0, Time: &updateTime},
+					)
+				} else {
+					i.MetricStore.SetCPUMetric(
+						cpuID,
+						consts.MetricCPUUsageRatio,
+						utilmetric.MetricData{Value: cell.Val / 100.0, Time: &updateTime},
+					)
+				}
 			case "sched_wait":
 				i.MetricStore.SetCPUMetric(
 					cpuID,

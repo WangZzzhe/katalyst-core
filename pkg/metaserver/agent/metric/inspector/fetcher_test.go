@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Katalyst Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package inspector
 
 import (
@@ -141,7 +157,7 @@ func makeTestMetricClient() client.MetricFunc {
 			return []byte(`{"data":[{"key":"numastat_node0_memtotal","val":33396891648},{"key":"numastat_node0_memfree","val":13186412544}]}`), nil
 		case fmt.Sprintf("%s%s", "http://localhost:9102", types.NodeCgroupMemoryPath):
 			return []byte(`{"data":[{"key":"qosgroupmem_besteffort_memory_usage","val":1266978816},{"key":"qosgroupmem_burstable_memory_rss","val":185856000},{"key":"qosgroupmem_besteffort_memory_rss","val":112910336},{"key":"qosgroupmem_burstable_memory_usage","val":380174336}]}`), nil
-		case fmt.Sprintf("%s%s", "http://localhost:9102", types.NodeCorePath):
+		case fmt.Sprintf("%s%s", "http://localhost:9102", types.NodeCPUPath):
 			return []byte(`{"data":[{"key":"percorecpu_cpu6_usage","val":21},{"key":"percorecpu_cpu0_sched_wait","val":0},{"key":"percorecpu_cpu2_sched_wait","val":0},{"key":"percorecpu_cpu1_usage","val":4},{"key":"percorecpu_cpu7_usage","val":22},{"key":"percorecpu_cpu6_sched_wait","val":0},{"key":"percorecpu_cpu7_sched_wait","val":0},{"key":"percorecpu_cpu5_usage","val":14},{"key":"percorecpu_cpu0_usage","val":5},{"key":"percorecpu_cpu3_usage","val":4},{"key":"percorecpu_cpu3_sched_wait","val":0},{"key":"percorecpu_cpu2_usage","val":5},{"key":"percorecpu_cpu5_sched_wait","val":0},{"key":"percorecpu_cpu4_usage","val":29},{"key":"percorecpu_cpu4_sched_wait","val":0},{"key":"percorecpu_cpu1_sched_wait","val":0}]}`), nil
 		case fmt.Sprintf("%s%s", "http://localhost:9102", types.ContainerCPUPath):
 			return []byte(`{"data":{"1df178c3a7bddf1269d18b556c1d22a025bdf194c4617d9b411d0ef4b9229ec6":[{"key":"cgcpu_nsecs","val":2015872049910},{"key":"cgcpu_sysusage","val":0},{"key":"cgcpu_userusage","val":99},{"key":"cgcpu_sys_nsecs","val":179907376},{"key":"cgcpu_user_nsecs","val":2015692142534},{"key":"cgcpu_usage","val":99}]}}`), nil
@@ -182,4 +198,10 @@ func (f *FakePodFetcher) GetPod(ctx context.Context, podUID string) (*v1.Pod, er
 
 func (f *FakePodFetcher) GetPodList(ctx context.Context, podFilter func(*v1.Pod) bool) ([]*v1.Pod, error) {
 	return f.GetPodListFunc(ctx, podFilter)
+}
+
+func TestT(t *testing.T) {
+	a := 32614152
+	a = a << 10
+	fmt.Println(a)
 }
