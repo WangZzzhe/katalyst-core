@@ -47,6 +47,7 @@ type MetaServerConfiguration struct {
 	CheckpointManagerDir string
 
 	EnableMetricsFetcher bool
+	MetricsFetcher       string
 	EnableCNCFetcher     bool
 }
 
