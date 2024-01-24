@@ -154,3 +154,7 @@ func IsContainerCgroupExist(podUID, containerID string) (bool, error) {
 
 	return general.IsPathExists(containerAbsCGPath), nil
 }
+
+func GetPodRelativeCgroupPath(podUID string) (string, error) {
+	return GetKubernetesAnyExistRelativeCgroupPath(fmt.Sprintf("%s%s", PodCgroupPathPrefix, podUID))
+}

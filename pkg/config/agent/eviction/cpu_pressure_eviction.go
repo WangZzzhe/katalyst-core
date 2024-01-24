@@ -22,7 +22,8 @@ import (
 
 // CPUPressureEvictionConfiguration is the config of CPUPressureEviction
 type CPUPressureEvictionConfiguration struct {
-	LoadEvictionSyncPeriod time.Duration
+	LoadEvictionSyncPeriod  time.Duration
+	UsageEvictionSyncPeriod time.Duration
 }
 
 // NewCPUPressureEvictionConfiguration returns a new CPUPressureEvictionConfiguration

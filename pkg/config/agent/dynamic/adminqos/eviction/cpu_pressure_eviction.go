@@ -23,6 +23,9 @@ import (
 )
 
 type CPUPressureEvictionConfiguration struct {
+	EnableSystemUsageEviction         bool
+	SystemUsageThresholdMetPercentage float64
+
 	EnableLoadEviction              bool
 	LoadUpperBoundRatio             float64
 	LoadThresholdMetPercentage      float64
@@ -76,6 +79,14 @@ func (c *CPUPressureEvictionConfiguration) ApplyConfiguration(conf *crd.DynamicC
 
 		if config.GracePeriod != nil {
 			c.GracePeriod = *config.GracePeriod
+		}
+
+		if config.EnableSystemUsageEviction != nil {
+			c.EnableSystemUsageEviction = *config.EnableSystemUsageEviction
+		}
+
+		if config.SystemUsageThresholdMetPercentage != nil {
+			c.SystemUsageThresholdMetPercentage = *config.SystemUsageThresholdMetPercentage
 		}
 	}
 }

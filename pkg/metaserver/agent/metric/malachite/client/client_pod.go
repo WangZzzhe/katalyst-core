@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/klog/v2"
+
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/kubewharf/katalyst-core/pkg/metaserver/agent/metric/malachite/types"
@@ -78,7 +80,22 @@ func (c *MalachiteClient) GetPodContainerStats(podUID, containerID string) (*typ
 		cgroupPath, err = cgroupcm.GetContainerRelativeCgroupPath(podUID, containerID)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("GetPodContainerStats %s/%v get-relative-path err %v", podUID, containerID, err)
+		pod, err := c.fetcher.GetPod(context.TODO(), podUID)
+		if err != nil {
+			klog.Fatal("c.fetcher.GetPod err: %v", err)
+		}
+		if pod != nil {
+			if pod.Spec.RuntimeClassName != nil && *pod.Spec.RuntimeClassName == "kata-qemu" {
+				cgroupPath, err = cgroupcm.GetPodRelativeCgroupPath(podUID)
+				if err != nil {
+					klog.Fatal("cgroupcm.GetPodRelativeCgroupPath err: %v", err)
+				}
+				klog.Infof("cgroup path is %s", cgroupPath)
+			}
+		}
+		if cgroupPath == "" {
+			return nil, fmt.Errorf("GetPodContainerStats %s/%v get-relative-path err %v", podUID, containerID, err)
+		}
 	}
 
 	containersStats, err := c.GetCgroupStats(cgroupPath)

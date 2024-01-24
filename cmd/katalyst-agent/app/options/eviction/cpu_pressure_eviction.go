@@ -25,18 +25,21 @@ import (
 )
 
 const (
-	defaultLoadEvictionSyncPeriod = 30 * time.Second
+	defaultLoadEvictionSyncPeriod  = 30 * time.Second
+	defaultUsageEvictionSyncPeriod = 10 * time.Second
 )
 
 // CPUPressureEvictionOptions is the options of CPUPressureEviction
 type CPUPressureEvictionOptions struct {
-	LoadEvictionSyncPeriod time.Duration
+	LoadEvictionSyncPeriod  time.Duration
+	UsageEvictionSyncPeriod time.Duration
 }
 
 // NewCPUPressureEvictionOptions returns a new CPUPressureEvictionOptions
 func NewCPUPressureEvictionOptions() *CPUPressureEvictionOptions {
 	return &CPUPressureEvictionOptions{
-		LoadEvictionSyncPeriod: defaultLoadEvictionSyncPeriod,
+		LoadEvictionSyncPeriod:  defaultLoadEvictionSyncPeriod,
+		UsageEvictionSyncPeriod: defaultUsageEvictionSyncPeriod,
 	}
 }
 
@@ -46,10 +49,13 @@ func (o *CPUPressureEvictionOptions) AddFlags(fss *cliflag.NamedFlagSets) {
 
 	fs.DurationVar(&o.LoadEvictionSyncPeriod, "eviction-load-sync-period",
 		o.LoadEvictionSyncPeriod, "cpu load eviction syncing period")
+	fs.DurationVar(&o.UsageEvictionSyncPeriod, "eviction-usage-sync-period",
+		o.UsageEvictionSyncPeriod, "cpu Usage eviction syncing period")
 }
 
 // ApplyTo applies CPUPressureEvictionOptions to CPUPressureEvictionConfiguration
 func (o *CPUPressureEvictionOptions) ApplyTo(c *evictionconfig.CPUPressureEvictionConfiguration) error {
 	c.LoadEvictionSyncPeriod = o.LoadEvictionSyncPeriod
+	c.UsageEvictionSyncPeriod = o.UsageEvictionSyncPeriod
 	return nil
 }

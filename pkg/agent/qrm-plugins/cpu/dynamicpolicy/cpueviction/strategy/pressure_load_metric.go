@@ -28,6 +28,7 @@ type MetricInfo struct {
 	Value      float64
 	UpperBound float64
 	LowerBound float64
+	IsPress    bool
 }
 
 type MetricSnapshot struct {
@@ -111,4 +112,21 @@ func CreateMetricRing(size int) *MetricRing {
 		Queue:        make([]*MetricSnapshot, size),
 		CurrentIndex: -1,
 	}
+}
+
+func (ring *MetricRing) CountPress() (pressCount int) {
+	ring.RLock()
+	defer ring.RUnlock()
+
+	pressCount = 0
+	for _, snapshot := range ring.Queue {
+		if snapshot == nil {
+			continue
+		}
+
+		if snapshot.Info.IsPress {
+			pressCount++
+		}
+	}
+	return
 }

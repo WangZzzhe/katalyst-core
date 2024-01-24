@@ -306,3 +306,15 @@ func MultiplyQuantity(quantity resource.Quantity, y float64) resource.Quantity {
 	value = int64(float64(value) * y)
 	return *resource.NewQuantity(value, quantity.Format)
 }
+
+func GetCPUQuantity(resourceList v1.ResourceList) resource.Quantity {
+	if quantity, ok := resourceList[v1.ResourceCPU]; ok {
+		return quantity
+	}
+
+	if quantity, ok := resourceList[consts.ReclaimedResourceMilliCPU]; ok {
+		return *resource.NewMilliQuantity(quantity.Value(), quantity.Format)
+	}
+
+	return resource.Quantity{}
+}
