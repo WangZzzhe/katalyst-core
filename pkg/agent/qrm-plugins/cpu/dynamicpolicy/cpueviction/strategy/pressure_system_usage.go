@@ -101,7 +101,7 @@ func (p *SystemCPUPressureUsageEviction) Start(ctx context.Context) (err error) 
 func (p *SystemCPUPressureUsageEviction) Name() string { return "system-pressure-usage" }
 
 func (p *SystemCPUPressureUsageEviction) GetEvictPods(context.Context, *pluginapi.GetEvictPodsRequest) (*pluginapi.GetEvictPodsResponse, error) {
-	return nil, nil
+	return &pluginapi.GetEvictPodsResponse{}, nil
 }
 
 func (p *SystemCPUPressureUsageEviction) collectMetrics(_ context.Context) {
