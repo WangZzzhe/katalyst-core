@@ -16,22 +16,84 @@ limitations under the License.
 
 package controller
 
-import "time"
+import (
+	"net/http"
+	"time"
+)
 
 type OvercommitConfig struct {
 	Node NodeOvercommitConfig
+
+	Prediction PredictionConfig
 }
 
 type NodeOvercommitConfig struct {
-	// numer of workers to sync overcommit config
+	// number of workers to sync overcommit config
 	SyncWorkers int
 
 	// time interval of reconcile overcommit config
 	ConfigReconcilePeriod time.Duration
 }
 
+type PredictionConfig struct {
+	Predictor       string
+	PredictPeriod   time.Duration
+	ReconcilePeriod time.Duration
+
+	MaxTimeSeriesDuration time.Duration
+	MinTimeSeriesDuration time.Duration
+
+	ResourcePortraitNamespace string
+	TargetReferenceNameKey    string
+	TargetReferenceTypeKey    string
+	CPUScaleFactor            float64
+	MemoryScaleFactor         float64
+
+	NodeCPUTargetLoad      float64
+	NodeMemoryTargetLoad   float64
+	PodEstimatedCPULoad    float64
+	PodEstimatedMemoryLoad float64
+
+	PromProviderConfig
+	NSigmaPredictorConfig
+}
+
+type PromProviderConfig struct {
+	// prometheus server address
+	Address        string
+	MaxPointsLimit int
+	ClientAuth
+}
+
+type ClientAuth struct {
+	Username    string
+	BearerToken string
+	Password    string
+}
+
+func (ca *ClientAuth) Apply(req *http.Request) {
+	if ca == nil {
+		return
+	}
+
+	if ca.BearerToken != "" {
+		token := "Bearer " + ca.BearerToken
+		req.Header.Add("Authorization", token)
+	}
+
+	if ca.Username != "" {
+		req.SetBasicAuth(ca.Username, ca.Password)
+	}
+}
+
+type NSigmaPredictorConfig struct {
+	Factor  int
+	Buckets int
+}
+
 func NewOvercommitConfig() *OvercommitConfig {
 	return &OvercommitConfig{
-		Node: NodeOvercommitConfig{},
+		Node:       NodeOvercommitConfig{},
+		Prediction: PredictionConfig{},
 	}
 }

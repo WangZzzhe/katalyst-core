@@ -90,7 +90,7 @@ func (na *WebhookNodeAllocatableMutator) MutateNode(node *core.Node, admissionRe
 
 		// calculate allocatable and capacity by overcommit ratio
 		if newAllocatable == nil || newCapacity == nil {
-			CPUOvercommitRatio, err := overcommitRatioValidate(CPUOvercommitRatioValue, node.Annotations[consts.NodeAnnotationRealtimeCPUOvercommitRatioKey])
+			CPUOvercommitRatio, err := cpuOvercommitRatioValidate(node.Annotations)
 			if err != nil {
 				klog.Errorf("node %s %s validate fail, value: %s, err: %v", node.Name, consts.NodeAnnotationCPUOvercommitRatioKey, CPUOvercommitRatioValue, err)
 			} else {
@@ -144,7 +144,7 @@ func (na *WebhookNodeAllocatableMutator) MutateNode(node *core.Node, admissionRe
 		}
 
 		if newAllocatable == nil || newCapacity == nil {
-			memoryOvercommitRatio, err := overcommitRatioValidate(memoryOvercommitRatioValue, node.Annotations[consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey])
+			memoryOvercommitRatio, err := memOvercommitRatioValidate(node.Annotations)
 			if err != nil {
 				klog.Errorf("node %s %s validate fail, value: %s, err: %v", node.Name, consts.NodeAnnotationMemoryOvercommitRatioKey, memoryOvercommitRatioValue, err)
 			} else {
@@ -176,29 +176,65 @@ func (na *WebhookNodeAllocatableMutator) Name() string {
 	return nodeAllocatableMutatorName
 }
 
-func overcommitRatioValidate(overcommitRatioAnnotation string, recommendOvercommitRatioAnnotation string) (float64, error) {
-	overcommitRatio, err := strconv.ParseFloat(overcommitRatioAnnotation, 64)
+func cpuOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, error) {
+	return overcommitRatioValidate(
+		nodeAnnotation,
+		consts.NodeAnnotationCPUOvercommitRatioKey,
+		consts.NodeAnnotationPredictCPUOvercommitRatioKey,
+		consts.NodeAnnotationRealtimeCPUOvercommitRatioKey,
+	)
+}
+
+func memOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, error) {
+	return overcommitRatioValidate(
+		nodeAnnotation,
+		consts.NodeAnnotationMemoryOvercommitRatioKey,
+		consts.NodeAnnotationPredictMemoryOvercommitRatioKey,
+		consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey,
+	)
+}
+
+func overcommitRatioValidate(
+	nodeAnnotation map[string]string,
+	setOvercommitKey, predictOvercommitKey, realtimeOvercommitKey string) (float64, error) {
+
+	// overcommit is not allowed if overcommitRatio is not set by user
+	setOvercommitVal, ok := nodeAnnotation[setOvercommitKey]
+	if !ok {
+		return 1.0, nil
+	}
+
+	overcommitRatio, err := strconv.ParseFloat(setOvercommitVal, 64)
 	if err != nil {
-		return 1, err
+		return 1.0, err
+	}
+
+	predictOvercommitVal, ok := nodeAnnotation[predictOvercommitKey]
+	if ok {
+		predictOvercommitRatio, err := strconv.ParseFloat(predictOvercommitVal, 64)
+		if err != nil {
+			klog.Errorf("predict overcommit %s validate fail: %v", predictOvercommitVal, err)
+		}
+		if predictOvercommitRatio < overcommitRatio {
+			overcommitRatio = predictOvercommitRatio
+		}
+	}
+
+	realtimeOvercommitVal, ok := nodeAnnotation[realtimeOvercommitKey]
+	if ok {
+		realtimeOvercommitRatio, err := strconv.ParseFloat(realtimeOvercommitVal, 64)
+		if err != nil {
+			klog.Errorf("realtime overcommit %s validate fail: %v", realtimeOvercommitVal, err)
+		}
+		if realtimeOvercommitRatio < overcommitRatio {
+			overcommitRatio = realtimeOvercommitRatio
+		}
 	}
 
 	if overcommitRatio < 1.0 {
 		err = fmt.Errorf("overcommitRatio should be greater than 1")
-		return 1, err
-	}
-
-	if recommendOvercommitRatioAnnotation == "" {
-		return overcommitRatio, nil
-	}
-
-	recommendOvercommitRatio, err := strconv.ParseFloat(recommendOvercommitRatioAnnotation, 64)
-	if err != nil {
 		klog.Error(err)
-		return overcommitRatio, nil
-	}
-
-	if recommendOvercommitRatio >= 1.0 && recommendOvercommitRatio < overcommitRatio {
-		return recommendOvercommitRatio, nil
+		return 1, nil
 	}
 
 	return overcommitRatio, nil
