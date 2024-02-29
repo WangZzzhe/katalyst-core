@@ -61,46 +61,40 @@ func (na *WebhookNodeAllocatableMutator) MutateNode(node *core.Node, admissionRe
 	nodeAnnotations[consts.NodeAnnotationOriginalAllocatableMemoryKey] = node.Status.Allocatable.Memory().String()
 	node.Annotations = nodeAnnotations
 
-	CPUOvercommitRatioValue, ok := node.Annotations[consts.NodeAnnotationCPUOvercommitRatioKey]
-	if ok {
-		CPUOvercommitRatio, err := overcommitRatioValidate(CPUOvercommitRatioValue)
-		if err != nil {
-			klog.Errorf("node %s %s validate fail, value: %s, err: %v", node.Name, consts.NodeAnnotationCPUOvercommitRatioKey, CPUOvercommitRatioValue, err)
-		} else {
-			if CPUOvercommitRatio > 1.0 {
-				allocatable := node.Status.Allocatable.Cpu()
-				capacity := node.Status.Capacity.Cpu()
-				newAllocatable := native.MultiplyResourceQuantity(core.ResourceCPU, *allocatable, CPUOvercommitRatio)
-				newCapacity := native.MultiplyResourceQuantity(core.ResourceCPU, *capacity, CPUOvercommitRatio)
-				klog.V(6).Infof(
-					"node %s %s capacity: %v, allocatable: %v, newCapacity: %v, newAllocatable: %v",
-					node.Name, core.ResourceCPU,
-					capacity.String(), newCapacity.String(),
-					allocatable.String(), newAllocatable.String())
-				node.Status.Allocatable[core.ResourceCPU] = newAllocatable
-				node.Status.Capacity[core.ResourceCPU] = newCapacity
-			}
+	CPUOvercommitRatio, err := cpuOvercommitRatioValidate(nodeAnnotations)
+	if err != nil {
+		klog.Errorf("node %v cpu overcommit ratio validate fail, err: %v", node.Name, err)
+	} else {
+		if CPUOvercommitRatio > 1.0 {
+			allocatable := node.Status.Allocatable.Cpu()
+			capacity := node.Status.Capacity.Cpu()
+			newAllocatable := native.MultiplyResourceQuantity(core.ResourceCPU, *allocatable, CPUOvercommitRatio)
+			newCapacity := native.MultiplyResourceQuantity(core.ResourceCPU, *capacity, CPUOvercommitRatio)
+			klog.V(6).Infof(
+				"node %s %s capacity: %v, allocatable: %v, newCapacity: %v, newAllocatable: %v",
+				node.Name, core.ResourceCPU,
+				capacity.String(), newCapacity.String(),
+				allocatable.String(), newAllocatable.String())
+			node.Status.Allocatable[core.ResourceCPU] = newAllocatable
+			node.Status.Capacity[core.ResourceCPU] = newCapacity
 		}
 	}
 
-	memoryOvercommitRatioValue, ok := node.Annotations[consts.NodeAnnotationMemoryOvercommitRatioKey]
-	if ok {
-		memoryOvercommitRatio, err := overcommitRatioValidate(memoryOvercommitRatioValue)
-		if err != nil {
-			klog.Errorf("node %s %s validate fail, value: %s, err: %v", node.Name, consts.NodeAnnotationMemoryOvercommitRatioKey, memoryOvercommitRatioValue, err)
-		} else {
-			if memoryOvercommitRatio > 1.0 {
-				allocatable := node.Status.Allocatable.Memory()
-				capacity := node.Status.Capacity.Memory()
-				newAllocatable := native.MultiplyResourceQuantity(core.ResourceMemory, *allocatable, memoryOvercommitRatio)
-				newCapacity := native.MultiplyResourceQuantity(core.ResourceMemory, *capacity, memoryOvercommitRatio)
-				klog.V(6).Infof("node %s %s capacity: %v, allocatable: %v, newCapacity: %v, newAllocatable: %v",
-					node.Name, core.ResourceMemory,
-					capacity.String(), newCapacity.String(),
-					allocatable.String(), newAllocatable.String())
-				node.Status.Allocatable[core.ResourceMemory] = newAllocatable
-				node.Status.Capacity[core.ResourceMemory] = newCapacity
-			}
+	memoryOvercommitRatio, err := memOvercommitRatioValidate(nodeAnnotations)
+	if err != nil {
+		klog.Errorf("node %s memory overcommit ratio validate fail, err: %v", node.Name, err)
+	} else {
+		if memoryOvercommitRatio > 1.0 {
+			allocatable := node.Status.Allocatable.Memory()
+			capacity := node.Status.Capacity.Memory()
+			newAllocatable := native.MultiplyResourceQuantity(core.ResourceMemory, *allocatable, memoryOvercommitRatio)
+			newCapacity := native.MultiplyResourceQuantity(core.ResourceMemory, *capacity, memoryOvercommitRatio)
+			klog.V(6).Infof("node %s %s capacity: %v, allocatable: %v, newCapacity: %v, newAllocatable: %v",
+				node.Name, core.ResourceMemory,
+				capacity.String(), newCapacity.String(),
+				allocatable.String(), newAllocatable.String())
+			node.Status.Allocatable[core.ResourceMemory] = newAllocatable
+			node.Status.Capacity[core.ResourceMemory] = newCapacity
 		}
 	}
 
@@ -111,15 +105,66 @@ func (na *WebhookNodeAllocatableMutator) Name() string {
 	return nodeAllocatableMutatorName
 }
 
-func overcommitRatioValidate(overcommitRatioAnnotation string) (float64, error) {
-	overcommitRatio, err := strconv.ParseFloat(overcommitRatioAnnotation, 64)
+func cpuOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, error) {
+	// todo: [wangzhe.21] add realtimeKey after realtime overcommit advisor merged.
+	return overcommitRatioValidate(
+		nodeAnnotation,
+		consts.NodeAnnotationCPUOvercommitRatioKey,
+		consts.NodeAnnotationPredictCPUOvercommitRatioKey,
+		"tmp")
+}
+
+func memOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, error) {
+	// todo: [wangzhe.21] add realtimeKey after realtime overcommit advisor merged.
+	return overcommitRatioValidate(
+		nodeAnnotation,
+		consts.NodeAnnotationMemoryOvercommitRatioKey,
+		consts.NodeAnnotationPredictMemoryOvercommitRatioKey,
+		"tmp",
+	)
+}
+
+func overcommitRatioValidate(
+	nodeAnnotation map[string]string,
+	setOvercommitKey, predictOvercommitKey, realtimeOvercommitKey string) (float64, error) {
+
+	// overcommit is not allowed if overcommitRatio is not set by user
+	setOvercommitVal, ok := nodeAnnotation[setOvercommitKey]
+	if !ok {
+		return 1.0, nil
+	}
+
+	overcommitRatio, err := strconv.ParseFloat(setOvercommitVal, 64)
 	if err != nil {
-		return 1, err
+		return 1.0, err
+	}
+
+	predictOvercommitVal, ok := nodeAnnotation[predictOvercommitKey]
+	if ok {
+		predictOvercommitRatio, err := strconv.ParseFloat(predictOvercommitVal, 64)
+		if err != nil {
+			klog.Errorf("predict overcommit %s validate fail: %v", predictOvercommitVal, err)
+		}
+		if predictOvercommitRatio < overcommitRatio {
+			overcommitRatio = predictOvercommitRatio
+		}
+	}
+
+	realtimeOvercommitVal, ok := nodeAnnotation[realtimeOvercommitKey]
+	if ok {
+		realtimeOvercommitRatio, err := strconv.ParseFloat(realtimeOvercommitVal, 64)
+		if err != nil {
+			klog.Errorf("realtime overcommit %s validate fail: %v", realtimeOvercommitVal, err)
+		}
+		if realtimeOvercommitRatio < overcommitRatio {
+			overcommitRatio = realtimeOvercommitRatio
+		}
 	}
 
 	if overcommitRatio < 1.0 {
 		err = fmt.Errorf("overcommitRatio should be greater than 1")
-		return 1, err
+		klog.Error(err)
+		return 1, nil
 	}
 
 	return overcommitRatio, nil

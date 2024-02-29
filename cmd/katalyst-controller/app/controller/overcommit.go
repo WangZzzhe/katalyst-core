@@ -24,6 +24,7 @@ import (
 	katalyst "github.com/kubewharf/katalyst-core/cmd/base"
 	"github.com/kubewharf/katalyst-core/pkg/config"
 	"github.com/kubewharf/katalyst-core/pkg/controller/overcommit/node"
+	"github.com/kubewharf/katalyst-core/pkg/controller/overcommit/prediction"
 )
 
 const (
@@ -48,6 +49,17 @@ func StartOvercommitController(
 		return false, err
 	}
 
+	pc, err := prediction.NewPredictionController(
+		ctx,
+		controlCtx,
+		conf.ControllersConfiguration.OvercommitConfig,
+	)
+	if err != nil {
+		klog.Errorf("failed to new overcommit prediction controller")
+		return false, err
+	}
+
 	go noc.Run()
+	go pc.Run()
 	return true, nil
 }
