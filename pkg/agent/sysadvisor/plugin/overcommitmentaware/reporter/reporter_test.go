@@ -116,6 +116,7 @@ func TestGetReportContent(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
+	t.Parallel()
 	p := &OvercommitRatioReporterPlugin{
 		manager: NewFakeOvercommitManager(map[v1.ResourceName]float64{
 			v1.ResourceCPU:     1.5123,
