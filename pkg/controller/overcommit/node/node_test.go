@@ -693,7 +693,9 @@ func TestNodeOvercommitResource(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gc, err := katalyst_base.GenerateFakeGenericContext()
 			assert.NoError(t, err)
 			_, err = gc.Client.InternalClient.NodeV1alpha1().CustomNodeResources().Create(context.TODO(), tc.kcnr, metav1.CreateOptions{})
