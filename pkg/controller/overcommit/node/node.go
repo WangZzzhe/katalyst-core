@@ -46,6 +46,7 @@ import (
 	"github.com/kubewharf/katalyst-core/pkg/controller/overcommit/node/matcher"
 	"github.com/kubewharf/katalyst-core/pkg/metrics"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
+	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
 )
 
 const nodeOvercommitControllerName = "noc"
@@ -619,41 +620,17 @@ func (nc *NodeOvercommitController) getGuaranteedCPU(nodeName string) (int, erro
 }
 
 func validCPUOvercommitRatio(annotation map[string]string) float64 {
-	return validOvercommitRatio(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey)
+	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationPredictCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey)
+	if err != nil {
+		klog.Error(err)
+	}
+	return res
 }
 
 func validMemoryOvercommitRatio(annotation map[string]string) float64 {
-	return validOvercommitRatio(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey)
-}
-
-func validOvercommitRatio(
-	annotation map[string]string,
-	setOvercommitRatioKey string,
-	realtimeOvercommitRatioKey string) float64 {
-	setValueStr, ok := annotation[setOvercommitRatioKey]
-	if !ok {
-		return 1.0
-	}
-
-	setValue, err := strconv.ParseFloat(setValueStr, 64)
+	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationPredictMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey)
 	if err != nil {
-		klog.Errorf("unknow overcommit ratio: %v, err: %v", setValueStr, err)
-		return 1.0
+		klog.Error(err)
 	}
-
-	realtimeValueStr, ok := annotation[realtimeOvercommitRatioKey]
-	if !ok {
-		return setValue
-	}
-
-	realtimeValue, err := strconv.ParseFloat(realtimeValueStr, 64)
-	if err != nil {
-		klog.Errorf("unknow realtime overcommit ratio: %v, err: %v", setValueStr, err)
-		return setValue
-	}
-
-	if realtimeValue < setValue {
-		return realtimeValue
-	}
-	return setValue
+	return res
 }

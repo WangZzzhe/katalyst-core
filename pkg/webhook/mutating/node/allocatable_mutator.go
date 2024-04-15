@@ -18,7 +18,6 @@ package node
 
 import (
 	"fmt"
-	"strconv"
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	core "k8s.io/api/core/v1"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
+	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
 )
 
 const (
@@ -177,7 +177,7 @@ func (na *WebhookNodeAllocatableMutator) Name() string {
 }
 
 func cpuOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, error) {
-	return overcommitRatioValidate(
+	return overcommitutil.OvercommitRatioValidate(
 		nodeAnnotation,
 		consts.NodeAnnotationCPUOvercommitRatioKey,
 		consts.NodeAnnotationPredictCPUOvercommitRatioKey,
@@ -186,56 +186,10 @@ func cpuOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, erro
 }
 
 func memOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, error) {
-	return overcommitRatioValidate(
+	return overcommitutil.OvercommitRatioValidate(
 		nodeAnnotation,
 		consts.NodeAnnotationMemoryOvercommitRatioKey,
 		consts.NodeAnnotationPredictMemoryOvercommitRatioKey,
 		consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey,
 	)
-}
-
-func overcommitRatioValidate(
-	nodeAnnotation map[string]string,
-	setOvercommitKey, predictOvercommitKey, realtimeOvercommitKey string) (float64, error) {
-
-	// overcommit is not allowed if overcommitRatio is not set by user
-	setOvercommitVal, ok := nodeAnnotation[setOvercommitKey]
-	if !ok {
-		return 1.0, nil
-	}
-
-	overcommitRatio, err := strconv.ParseFloat(setOvercommitVal, 64)
-	if err != nil {
-		return 1.0, err
-	}
-
-	predictOvercommitVal, ok := nodeAnnotation[predictOvercommitKey]
-	if ok {
-		predictOvercommitRatio, err := strconv.ParseFloat(predictOvercommitVal, 64)
-		if err != nil {
-			klog.Errorf("predict overcommit %s validate fail: %v", predictOvercommitVal, err)
-		}
-		if predictOvercommitRatio < overcommitRatio {
-			overcommitRatio = predictOvercommitRatio
-		}
-	}
-
-	realtimeOvercommitVal, ok := nodeAnnotation[realtimeOvercommitKey]
-	if ok {
-		realtimeOvercommitRatio, err := strconv.ParseFloat(realtimeOvercommitVal, 64)
-		if err != nil {
-			klog.Errorf("realtime overcommit %s validate fail: %v", realtimeOvercommitVal, err)
-		}
-		if realtimeOvercommitRatio < overcommitRatio {
-			overcommitRatio = realtimeOvercommitRatio
-		}
-	}
-
-	if overcommitRatio < 1.0 {
-		err = fmt.Errorf("overcommitRatio should be greater than 1")
-		klog.Error(err)
-		return 1, nil
-	}
-
-	return overcommitRatio, nil
 }

@@ -19,7 +19,6 @@ package nodeovercommitment
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -29,6 +28,7 @@ import (
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/nodeovercommitment/cache"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
+	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
 )
 
 type preFilterState struct {
@@ -139,45 +139,16 @@ func (n *NodeOvercommitment) nodeOvercommitRatio(nodeInfo *framework.NodeInfo) (
 	var (
 		annotation = nodeInfo.Node().GetAnnotations()
 	)
-	CPUOvercommitAnnotation, ok := annotation[consts.NodeAnnotationCPUOvercommitRatioKey]
-	if ok {
-		CPUOvercommitRatio, err = strconv.ParseFloat(CPUOvercommitAnnotation, 64)
-		if err != nil {
-			klog.Error(err)
-			return
-		}
-	}
-	realtimeCPUOvercommitAnnotation, ok := annotation[consts.NodeAnnotationRealtimeCPUOvercommitRatioKey]
-	if ok {
-		realtimeCPUOvercommitRatio, err := strconv.ParseFloat(realtimeCPUOvercommitAnnotation, 64)
-		if err != nil {
-			klog.Error(err)
-		} else {
-			if realtimeCPUOvercommitRatio < CPUOvercommitRatio && realtimeCPUOvercommitRatio >= 1 {
-				CPUOvercommitRatio = realtimeCPUOvercommitRatio
-			}
-		}
+	CPUOvercommitRatio, err = overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationPredictCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey)
+	if err != nil {
+		klog.Error(err)
+		return
 	}
 
-	memoryOvercommitAnnotation, ok := annotation[consts.NodeAnnotationMemoryOvercommitRatioKey]
-	if ok {
-		memoryOvercommitRatio, err = strconv.ParseFloat(memoryOvercommitAnnotation, 64)
-		if err != nil {
-			klog.Error(err)
-			return
-		}
-	}
-
-	realtimeMemoryOvercommitAnnotation, ok := annotation[consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey]
-	if ok {
-		realtimeMemoryOvercommitRatio, err := strconv.ParseFloat(realtimeMemoryOvercommitAnnotation, 64)
-		if err != nil {
-			klog.Error(err)
-		} else {
-			if realtimeMemoryOvercommitRatio < memoryOvercommitRatio && realtimeMemoryOvercommitRatio >= 1 {
-				memoryOvercommitRatio = realtimeMemoryOvercommitRatio
-			}
-		}
+	memoryOvercommitRatio, err = overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationPredictMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey)
+	if err != nil {
+		klog.Error(err)
+		return
 	}
 
 	return
