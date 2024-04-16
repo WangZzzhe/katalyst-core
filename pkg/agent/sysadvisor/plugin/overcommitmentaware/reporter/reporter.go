@@ -223,7 +223,7 @@ func (o *OvercommitRatioReporterPlugin) overcommitRatioToCNRAnnotation(overcommi
 		Field: []*v1alpha1.ReportField{
 			{
 				FieldType: v1alpha1.FieldType_Metadata,
-				FieldName: "Annotations",
+				FieldName: util.CNRFieldNameAnnotations,
 				Value:     value,
 			},
 		},
