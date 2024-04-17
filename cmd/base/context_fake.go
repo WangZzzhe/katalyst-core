@@ -21,8 +21,6 @@ import (
 	"reflect"
 	"strconv"
 
-	nodev1alpha1 "github.com/kubewharf/katalyst-api/pkg/apis/node/v1alpha1"
-
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -44,7 +42,9 @@ import (
 
 	apis "github.com/kubewharf/katalyst-api/pkg/apis/autoscaling/v1alpha1"
 	"github.com/kubewharf/katalyst-api/pkg/apis/config/v1alpha1"
+	nodev1alpha1 "github.com/kubewharf/katalyst-api/pkg/apis/node/v1alpha1"
 	overcommitapis "github.com/kubewharf/katalyst-api/pkg/apis/overcommit/v1alpha1"
+	resourceportraitapis "github.com/kubewharf/katalyst-api/pkg/apis/resourceportrait/v1alpha1"
 	workloadapis "github.com/kubewharf/katalyst-api/pkg/apis/workload/v1alpha1"
 	externalfake "github.com/kubewharf/katalyst-api/pkg/client/clientset/versioned/fake"
 	"github.com/kubewharf/katalyst-core/pkg/client"
@@ -244,6 +244,7 @@ func GenerateFakeGenericContext(objects ...[]runtime.Object) (*GenericContext, e
 	utilruntime.Must(overcommitapis.AddToScheme(scheme))
 	utilruntime.Must(apiregistration.AddToScheme(scheme))
 	utilruntime.Must(nodev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(resourceportraitapis.AddToScheme(scheme))
 
 	fakeMetaClient := metaFake.NewSimpleMetadataClient(scheme, nilObjectFilter(metaObjects)...)
 	fakeInternalClient := externalfake.NewSimpleClientset(nilObjectFilter(internalObjects)...)

@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"time"
 
+	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -634,46 +636,17 @@ func (nc *NodeOvercommitController) nodeEnableDynamicOvercommit(nodeName string)
 }
 
 func validCPUOvercommitRatio(annotation map[string]string, enableDynamicOvercommit bool) float64 {
-	return validOvercommitRatio(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey, enableDynamicOvercommit)
+	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationPredictCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey, enableDynamicOvercommit)
+	if err != nil {
+		klog.Error(err)
+	}
+	return res
 }
 
 func validMemoryOvercommitRatio(annotation map[string]string, enableDynamicOvercommit bool) float64 {
-	return validOvercommitRatio(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey, enableDynamicOvercommit)
-}
-
-func validOvercommitRatio(
-	annotation map[string]string,
-	setOvercommitRatioKey string,
-	realtimeOvercommitRatioKey string,
-	enableDynamicOvercommit bool) float64 {
-	setValueStr, ok := annotation[setOvercommitRatioKey]
-	if !ok {
-		return 1.0
-	}
-
-	setValue, err := strconv.ParseFloat(setValueStr, 64)
+	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationPredictMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey, enableDynamicOvercommit)
 	if err != nil {
-		klog.Errorf("unknow overcommit ratio: %v, err: %v", setValueStr, err)
-		return 1.0
+		klog.Error(err)
 	}
-
-	if !enableDynamicOvercommit {
-		return setValue
-	}
-
-	realtimeValueStr, ok := annotation[realtimeOvercommitRatioKey]
-	if !ok {
-		return setValue
-	}
-
-	realtimeValue, err := strconv.ParseFloat(realtimeValueStr, 64)
-	if err != nil {
-		klog.Errorf("unknow realtime overcommit ratio: %v, err: %v", setValueStr, err)
-		return setValue
-	}
-
-	if realtimeValue < setValue {
-		return realtimeValue
-	}
-	return setValue
+	return res
 }

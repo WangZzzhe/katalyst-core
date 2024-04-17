@@ -422,6 +422,7 @@ func TestRun(t *testing.T) {
 				_, err = controlCtx.Client.KubeClient.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 				assert.NoError(t, err)
 			}
+
 			for _, config := range tc.addConfigs {
 				_, err = controlCtx.Client.InternalClient.OvercommitV1alpha1().NodeOvercommitConfigs().Create(ctx, config, metav1.CreateOptions{})
 				assert.NoError(t, err)
