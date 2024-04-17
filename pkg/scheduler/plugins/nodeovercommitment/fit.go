@@ -147,6 +147,19 @@ func (n *NodeOvercommitment) nodeOvercommitRatio(nodeInfo *framework.NodeInfo) (
 			return
 		}
 	}
+	memoryOvercommitAnnotation, ok := annotation[consts.NodeAnnotationMemoryOvercommitRatioKey]
+	if ok {
+		memoryOvercommitRatio, err = strconv.ParseFloat(memoryOvercommitAnnotation, 64)
+		if err != nil {
+			klog.Error(err)
+			return
+		}
+	}
+	enableDynamicOvercommit := n.enableDynamicOvercommit(nodeInfo.Node())
+	if !enableDynamicOvercommit {
+		return
+	}
+
 	realtimeCPUOvercommitAnnotation, ok := annotation[consts.NodeAnnotationRealtimeCPUOvercommitRatioKey]
 	if ok {
 		realtimeCPUOvercommitRatio, err := strconv.ParseFloat(realtimeCPUOvercommitAnnotation, 64)
@@ -156,15 +169,6 @@ func (n *NodeOvercommitment) nodeOvercommitRatio(nodeInfo *framework.NodeInfo) (
 			if realtimeCPUOvercommitRatio < CPUOvercommitRatio && realtimeCPUOvercommitRatio >= 1 {
 				CPUOvercommitRatio = realtimeCPUOvercommitRatio
 			}
-		}
-	}
-
-	memoryOvercommitAnnotation, ok := annotation[consts.NodeAnnotationMemoryOvercommitRatioKey]
-	if ok {
-		memoryOvercommitRatio, err = strconv.ParseFloat(memoryOvercommitAnnotation, 64)
-		if err != nil {
-			klog.Error(err)
-			return
 		}
 	}
 
@@ -181,6 +185,27 @@ func (n *NodeOvercommitment) nodeOvercommitRatio(nodeInfo *framework.NodeInfo) (
 	}
 
 	return
+}
+
+func (n *NodeOvercommitment) enableDynamicOvercommit(node *v1.Node) bool {
+	if node == nil || node.Labels == nil {
+		return false
+	}
+
+	overcommitPool, ok := node.Labels[consts.NodeOvercommitSelectorKey]
+	if !ok {
+		return false
+	}
+
+	// get pool matched config
+	noc, err := cache.GetCache().GetNocByIndexer(overcommitPool)
+	if err != nil {
+		klog.Errorf("get node overcommit fail, node: %v, labelValue: %v, err: %v", node.Name, overcommitPool, err)
+		return false
+	}
+	klog.V(6).Infof("node %v matched noc %v with label value %v, enableDynamicOvercommit: %v", node.Name, noc.Name, overcommitPool, noc.Spec.EnableDynamicOvercommit)
+
+	return noc.Spec.EnableDynamicOvercommit
 }
 
 func computePodResourceRequest(pod *v1.Pod) *preFilterState {

@@ -467,7 +467,10 @@ func (nc *NodeOvercommitController) setNodeOvercommitAnnotations(nodeName string
 
 	nc.nodeRealtimeOvercommitRatio(nodeAnnotations, node)
 
-	cpuAllocatable, cpuCapacity := nc.nodeOvercommitResource(node, validCPUOvercommitRatio(nodeAnnotations), corev1.ResourceCPU, consts.NodeAnnotationOriginalAllocatableCPUKey, consts.NodeAnnotationOriginalCapacityCPUKey)
+	enableDynamicOvercommit := nc.nodeEnableDynamicOvercommit(node.Name)
+	klog.V(6).Infof("node %s enableDynamicOvercommit: %v", node.Name, enableDynamicOvercommit)
+
+	cpuAllocatable, cpuCapacity := nc.nodeOvercommitResource(node, validCPUOvercommitRatio(nodeAnnotations, enableDynamicOvercommit), corev1.ResourceCPU, consts.NodeAnnotationOriginalAllocatableCPUKey, consts.NodeAnnotationOriginalCapacityCPUKey)
 	klog.V(5).Infof("node %s CPU allocatable: %v, CPU capacity: %v with bindcpu", node.Name, cpuAllocatable, cpuCapacity)
 	if cpuAllocatable == "" {
 		delete(nodeAnnotations, consts.NodeAnnotationOvercommitAllocatableCPUKey)
@@ -477,7 +480,7 @@ func (nc *NodeOvercommitController) setNodeOvercommitAnnotations(nodeName string
 		nodeAnnotations[consts.NodeAnnotationOvercommitCapacityCPUKey] = cpuCapacity
 	}
 
-	memAllocatable, memCapacity := nc.nodeOvercommitResource(node, validMemoryOvercommitRatio(nodeAnnotations), corev1.ResourceMemory, consts.NodeAnnotationOriginalAllocatableMemoryKey, consts.NodeAnnotationOriginalCapacityMemoryKey)
+	memAllocatable, memCapacity := nc.nodeOvercommitResource(node, validMemoryOvercommitRatio(nodeAnnotations, enableDynamicOvercommit), corev1.ResourceMemory, consts.NodeAnnotationOriginalAllocatableMemoryKey, consts.NodeAnnotationOriginalCapacityMemoryKey)
 	klog.V(5).Infof("node %s memory allocatable: %v, memory capacity: %v", node.Name, memAllocatable, memCapacity)
 	if memAllocatable == "" {
 		delete(nodeAnnotations, consts.NodeAnnotationOvercommitAllocatableMemoryKey)
@@ -618,18 +621,31 @@ func (nc *NodeOvercommitController) getGuaranteedCPU(nodeName string) (int, erro
 	return guaranteedCPUs, nil
 }
 
-func validCPUOvercommitRatio(annotation map[string]string) float64 {
-	return validOvercommitRatio(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey)
+func (nc *NodeOvercommitController) nodeEnableDynamicOvercommit(nodeName string) bool {
+	// get node matched config
+
+	noc := nc.matcher.GetConfig(nodeName)
+	if noc == nil {
+		// if node is not matched with any noc, overcommit is not allowed
+		return false
+	}
+
+	return noc.Spec.EnableDynamicOvercommit
 }
 
-func validMemoryOvercommitRatio(annotation map[string]string) float64 {
-	return validOvercommitRatio(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey)
+func validCPUOvercommitRatio(annotation map[string]string, enableDynamicOvercommit bool) float64 {
+	return validOvercommitRatio(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey, enableDynamicOvercommit)
+}
+
+func validMemoryOvercommitRatio(annotation map[string]string, enableDynamicOvercommit bool) float64 {
+	return validOvercommitRatio(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey, enableDynamicOvercommit)
 }
 
 func validOvercommitRatio(
 	annotation map[string]string,
 	setOvercommitRatioKey string,
-	realtimeOvercommitRatioKey string) float64 {
+	realtimeOvercommitRatioKey string,
+	enableDynamicOvercommit bool) float64 {
 	setValueStr, ok := annotation[setOvercommitRatioKey]
 	if !ok {
 		return 1.0
@@ -639,6 +655,10 @@ func validOvercommitRatio(
 	if err != nil {
 		klog.Errorf("unknow overcommit ratio: %v, err: %v", setValueStr, err)
 		return 1.0
+	}
+
+	if !enableDynamicOvercommit {
+		return setValue
 	}
 
 	realtimeValueStr, ok := annotation[realtimeOvercommitRatioKey]
