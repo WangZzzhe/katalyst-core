@@ -19,8 +19,6 @@ package node
 import (
 	"fmt"
 
-	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
-
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -28,6 +26,7 @@ import (
 
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
+	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
 )
 
 const (
@@ -181,7 +180,9 @@ func cpuOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, erro
 	return overcommitutil.OvercommitRatioValidate(
 		nodeAnnotation,
 		consts.NodeAnnotationCPUOvercommitRatioKey,
+		consts.NodeAnnotationPredictCPUOvercommitRatioKey,
 		consts.NodeAnnotationRealtimeCPUOvercommitRatioKey,
+		true,
 	)
 }
 
@@ -189,6 +190,8 @@ func memOvercommitRatioValidate(nodeAnnotation map[string]string) (float64, erro
 	return overcommitutil.OvercommitRatioValidate(
 		nodeAnnotation,
 		consts.NodeAnnotationMemoryOvercommitRatioKey,
+		consts.NodeAnnotationPredictMemoryOvercommitRatioKey,
 		consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey,
+		true,
 	)
 }

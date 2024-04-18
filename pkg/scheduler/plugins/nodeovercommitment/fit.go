@@ -20,8 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
@@ -30,6 +28,7 @@ import (
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/nodeovercommitment/cache"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
+	overcommitutil "github.com/kubewharf/katalyst-core/pkg/util/overcommit"
 )
 
 type preFilterState struct {
@@ -140,13 +139,13 @@ func (n *NodeOvercommitment) nodeOvercommitRatio(nodeInfo *framework.NodeInfo) (
 	var (
 		annotation = nodeInfo.Node().GetAnnotations()
 	)
-	CPUOvercommitRatio, err = overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey)
+	CPUOvercommitRatio, err = overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationPredictCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey, true)
 	if err != nil {
 		klog.Error(err)
 		return
 	}
 
-	memoryOvercommitRatio, err = overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey)
+	memoryOvercommitRatio, err = overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationPredictMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey, true)
 	if err != nil {
 		klog.Error(err)
 		return

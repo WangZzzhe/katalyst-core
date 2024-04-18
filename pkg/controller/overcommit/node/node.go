@@ -620,7 +620,7 @@ func (nc *NodeOvercommitController) getGuaranteedCPU(nodeName string) (int, erro
 }
 
 func validCPUOvercommitRatio(annotation map[string]string) float64 {
-	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey)
+	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationPredictCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey, true)
 	if err != nil {
 		klog.Error(err)
 	}
@@ -628,7 +628,7 @@ func validCPUOvercommitRatio(annotation map[string]string) float64 {
 }
 
 func validMemoryOvercommitRatio(annotation map[string]string) float64 {
-	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey)
+	res, err := overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationMemoryOvercommitRatioKey, consts.NodeAnnotationPredictMemoryOvercommitRatioKey, consts.NodeAnnotationRealtimeMemoryOvercommitRatioKey, true)
 	if err != nil {
 		klog.Error(err)
 	}
