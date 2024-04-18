@@ -36,6 +36,7 @@ type OvercommitOptions struct {
 }
 
 type PredictionOptions struct {
+	EnablePredict bool
 	// workload usage predictor name
 	Predictor string
 
@@ -95,6 +96,7 @@ type NSigmaOptions struct {
 func NewOvercommitOptions() *OvercommitOptions {
 	return &OvercommitOptions{
 		PredictionOptions: PredictionOptions{
+			EnablePredict:          false,
 			Predictor:              "",
 			PredictPeriod:          24 * time.Hour,
 			ReconcilePeriod:        1 * time.Hour,
@@ -124,6 +126,7 @@ func (o *OvercommitOptions) AddFlags(fss *cliflag.NamedFlagSets) {
 	fs.IntVar(&o.SyncWorkers, "nodeovercommit-sync-workers", defaultNodeOvercommitSyncWorkers, "num of goroutines to sync nodeovercommitconfig")
 	fs.DurationVar(&o.ConfigReconcilePeriod, "nodeovercommit-reconcile-period", defaultNodeOvercommitReconcilePeriod, "Period for nodeovercommit controller to sync configs")
 
+	fs.BoolVar(&o.EnablePredict, "nodeovercommit-enable-predict", o.EnablePredict, "enable node overcommit prediction")
 	fs.StringVar(&o.Predictor, "nodeovercommit-predictor", o.Predictor, "workload usage predictor in node overcommit controller")
 	fs.DurationVar(&o.PredictPeriod, "nodeovercommit-workload-predict-period", o.PredictPeriod, "reconcile period of workload usage predictor in overcommit controller")
 	fs.DurationVar(&o.ReconcilePeriod, "nodeovercommit-node-predict-period", o.ReconcilePeriod, "reconcile period of node overcommitmentRatio prediction in overcommit controller")
@@ -164,6 +167,7 @@ func (o *OvercommitOptions) AddFlags(fss *cliflag.NamedFlagSets) {
 func (o *OvercommitOptions) ApplyTo(c *controller.OvercommitConfig) error {
 	c.Node.SyncWorkers = o.SyncWorkers
 	c.Node.ConfigReconcilePeriod = o.ConfigReconcilePeriod
+	c.Prediction.EnablePredict = o.EnablePredict
 	c.Prediction.Predictor = o.Predictor
 	c.Prediction.PredictPeriod = o.PredictPeriod
 	c.Prediction.ReconcilePeriod = o.ReconcilePeriod

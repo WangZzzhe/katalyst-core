@@ -49,17 +49,21 @@ func StartOvercommitController(
 		return false, err
 	}
 
-	pc, err := prediction.NewPredictionController(
-		ctx,
-		controlCtx,
-		conf.ControllersConfiguration.OvercommitConfig,
-	)
-	if err != nil {
-		klog.Errorf("failed to new overcommit prediction controller")
-		return false, err
+	go noc.Run()
+
+	if conf.Prediction.EnablePredict {
+		pc, err := prediction.NewPredictionController(
+			ctx,
+			controlCtx,
+			conf.ControllersConfiguration.OvercommitConfig,
+		)
+		if err != nil {
+			klog.Errorf("failed to new overcommit prediction controller")
+			return false, err
+		}
+
+		go pc.Run()
 	}
 
-	go noc.Run()
-	go pc.Run()
 	return true, nil
 }

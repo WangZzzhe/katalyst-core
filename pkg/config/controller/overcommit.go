@@ -36,6 +36,7 @@ type NodeOvercommitConfig struct {
 }
 
 type PredictionConfig struct {
+	EnablePredict   bool
 	Predictor       string
 	PredictPeriod   time.Duration
 	ReconcilePeriod time.Duration
