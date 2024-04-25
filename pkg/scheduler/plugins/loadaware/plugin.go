@@ -1,19 +1,27 @@
 package loadaware
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/kubewharf/katalyst-api/pkg/consts"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/pkg/scheduler/framework"
 
 	"github.com/kubewharf/katalyst-api/pkg/apis/node/v1alpha1"
 	"github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config"
+	"github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config/validation"
 	listers "github.com/kubewharf/katalyst-api/pkg/client/listers/node/v1alpha1"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/kubernetes/pkg/scheduler/framework"
+	"github.com/kubewharf/katalyst-api/pkg/consts"
 )
 
 const (
 	Name = "LoadAware"
+
+	DefaultNodeMonitorReportInterval       = 60 * time.Second
+	DefaultMilliCPURequest           int64 = 250               // 0.25 core
+	DefaultMemoryRequest             int64 = 200 * 1024 * 1024 // 200 MB
 )
 
 var (
@@ -23,9 +31,30 @@ var (
 )
 
 type Plugin struct {
-	handler           framework.Handle
+	handle            framework.Handle
 	args              *config.LoadAwareArgs
 	nodeMonitorLister listers.NodeMonitorLister
+}
+
+func NewPlugin(args runtime.Object, handle framework.Handle) (framework.Plugin, error) {
+	klog.Infof("new loadAware scheduler plugin")
+	pluginArgs, ok := args.(*config.LoadAwareArgs)
+	if !ok {
+		return nil, fmt.Errorf("want args to be of type LoadAwareArgs, got %T", args)
+	}
+	if err := validation.ValidateLoadAwareSchedulingArgs(pluginArgs); err != nil {
+		klog.Errorf("validate pluginArgs fail, err: %v", err)
+		return nil, err
+	}
+
+	p := &Plugin{
+		handle: handle,
+		args:   pluginArgs,
+	}
+	p.registerNodeMonitorHandler()
+	RegisterPodHandler()
+
+	return p, nil
 }
 
 func (p *Plugin) Name() string {

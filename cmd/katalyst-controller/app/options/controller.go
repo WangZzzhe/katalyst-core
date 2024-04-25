@@ -31,6 +31,7 @@ type ControllersOptions struct {
 	*MonitorOptions
 	*OvercommitOptions
 	*ResourceRecommenderOptions
+	*LoadAwareOptions
 }
 
 func NewControllersOptions() *ControllersOptions {
@@ -42,6 +43,7 @@ func NewControllersOptions() *ControllersOptions {
 		MonitorOptions:             NewMonitorOptions(),
 		OvercommitOptions:          NewOvercommitOptions(),
 		ResourceRecommenderOptions: NewResourceRecommenderOptions(),
+		LoadAwareOptions:           NewLoadAwareOptions(),
 	}
 }
 
@@ -53,6 +55,7 @@ func (o *ControllersOptions) AddFlags(fss *cliflag.NamedFlagSets) {
 	o.MonitorOptions.AddFlags(fss)
 	o.OvercommitOptions.AddFlags(fss)
 	o.ResourceRecommenderOptions.AddFlags(fss)
+	o.LoadAwareOptions.AddFlags(fss)
 }
 
 // ApplyTo fills up config with options
@@ -66,6 +69,7 @@ func (o *ControllersOptions) ApplyTo(c *controllerconfig.ControllersConfiguratio
 	errList = append(errList, o.MonitorOptions.ApplyTo(c.MonitorConfig))
 	errList = append(errList, o.OvercommitOptions.ApplyTo(c.OvercommitConfig))
 	errList = append(errList, o.ResourceRecommenderOptions.ApplyTo(c.ResourceRecommenderConfig))
+	errList = append(errList, o.LoadAwareOptions.ApplyTo(c.LoadAwareConfig))
 	return errors.NewAggregate(errList)
 }
 

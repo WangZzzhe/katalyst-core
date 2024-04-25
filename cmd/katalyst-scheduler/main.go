@@ -23,6 +23,7 @@ import (
 	"k8s.io/component-base/logs"
 
 	"github.com/kubewharf/katalyst-core/cmd/katalyst-scheduler/app"
+	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/loadaware"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/noderesourcetopology"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/qosawarenoderesources"
 
@@ -38,6 +39,7 @@ func main() {
 		app.WithPlugin(qosawarenoderesources.FitName, qosawarenoderesources.NewFit),
 		app.WithPlugin(qosawarenoderesources.BalancedAllocationName, qosawarenoderesources.NewBalancedAllocation),
 		app.WithPlugin(noderesourcetopology.TopologyMatchName, noderesourcetopology.New),
+		app.WithPlugin(loadaware.Name, loadaware.NewPlugin),
 	)
 
 	if err := runCommand(command); err != nil {

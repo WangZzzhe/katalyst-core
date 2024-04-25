@@ -50,6 +50,7 @@ type ControllersConfiguration struct {
 	*OvercommitConfig
 	*TideConfig
 	*ResourceRecommenderConfig
+	*LoadAwareConfig
 }
 
 func NewGenericControllerConfiguration() *GenericControllerConfiguration {
@@ -66,5 +67,6 @@ func NewControllersConfiguration() *ControllersConfiguration {
 		OvercommitConfig:          NewOvercommitConfig(),
 		TideConfig:                NewTideConfig(),
 		ResourceRecommenderConfig: NewResourceRecommenderConfig(),
+		LoadAwareConfig:           NewLoadAwareConfig(),
 	}
 }
