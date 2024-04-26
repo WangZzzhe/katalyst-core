@@ -24,6 +24,7 @@ import (
 
 	"github.com/kubewharf/katalyst-core/cmd/katalyst-scheduler/app"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/loadaware"
+	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/nodeovercommitment"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/noderesourcetopology"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/qosawarenoderesources"
 
@@ -40,6 +41,7 @@ func main() {
 		app.WithPlugin(qosawarenoderesources.BalancedAllocationName, qosawarenoderesources.NewBalancedAllocation),
 		app.WithPlugin(noderesourcetopology.TopologyMatchName, noderesourcetopology.New),
 		app.WithPlugin(loadaware.Name, loadaware.NewPlugin),
+		app.WithPlugin(nodeovercommitment.Name, nodeovercommitment.New),
 	)
 
 	if err := runCommand(command); err != nil {
