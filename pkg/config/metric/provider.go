@@ -17,7 +17,7 @@ limitations under the License.
 package metric
 
 import (
-	basecmd "sigs.k8s.io/custom-metrics-apiserver/pkg/cmd"
+	basecmd "github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/cmd"
 )
 
 type ProviderConfiguration struct {

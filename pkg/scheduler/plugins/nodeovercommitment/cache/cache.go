@@ -203,7 +203,7 @@ func (n *NodeCache) updateTopologyProvider(cnr *v1alpha1.CustomNodeResource) {
 
 	if memoryManagerPolicy, ok := cnr.Annotations[consts.KCNRAnnotationMemoryManager]; ok {
 		if memoryManagerPolicy == "Static" {
-			n.HintProviders[string(features.MemoryManager)] = struct{}{}
+			n.HintProviders["MemoryManager"] = struct{}{}
 		}
 	}
 }
@@ -217,7 +217,7 @@ func (n *NodeCache) HintProvidersAvailable() (CPUManager, MemoryManager bool) {
 		CPUManager = true
 	}
 
-	_, ok = n.HintProviders[string(features.MemoryManager)]
+	_, ok = n.HintProviders["MemoryManager"]
 	if ok {
 		MemoryManager = true
 	}

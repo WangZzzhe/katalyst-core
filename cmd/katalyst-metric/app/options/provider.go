@@ -17,8 +17,8 @@ limitations under the License.
 package options
 
 import (
+	basecmd "github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/cmd"
 	cliflag "k8s.io/component-base/cli/flag"
-	basecmd "sigs.k8s.io/custom-metrics-apiserver/pkg/cmd"
 
 	"github.com/kubewharf/katalyst-core/pkg/config/metric"
 )

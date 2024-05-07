@@ -40,9 +40,9 @@ func (s *preFilterState) Clone() framework.StateData {
 	return s
 }
 
-func (n *NodeOvercommitment) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) (*framework.PreFilterResult, *framework.Status) {
+func (n *NodeOvercommitment) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) *framework.Status {
 	cycleState.Write(preFilterStateKey, computePodResourceRequest(pod))
-	return nil, nil
+	return nil
 }
 
 func (n *NodeOvercommitment) PreFilterExtensions() framework.PreFilterExtensions {

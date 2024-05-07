@@ -24,7 +24,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kubewharf/katalyst-core/pkg/util/general"
-	"github.com/kubewharf/katalyst-core/pkg/util/machine"
 )
 
 type Aggregator string
@@ -110,33 +109,6 @@ func (c *MetricStore) AggregatePodMetric(podList []*v1.Pod, metricName string, a
 	case AggregatorAvg:
 		if validPods.Len() > 0 {
 			data.Value /= float64(validPods.Len())
-		}
-	}
-	return data
-}
-
-// AggregateCoreMetric handles metric for all cores
-func (c *MetricStore) AggregateCoreMetric(cpuset machine.CPUSet, metricName string, agg Aggregator) MetricData {
-	now := time.Now()
-	data := MetricData{Value: .0, Time: &now}
-
-	coreCount := 0.
-	for _, cpu := range cpuset.ToSliceInt() {
-		metric, err := c.GetCPUMetric(cpu, metricName)
-		if err != nil {
-			klog.V(4).Infof("failed to get metric cpu %v, metric %v, err: %v", cpu, metricName, err)
-			continue
-		}
-
-		coreCount++
-		data.Value += metric.Value
-		data.Time = general.MaxTimePtr(data.Time, metric.Time)
-	}
-
-	switch agg {
-	case AggregatorAvg:
-		if coreCount > 0 {
-			data.Value /= coreCount
 		}
 	}
 	return data

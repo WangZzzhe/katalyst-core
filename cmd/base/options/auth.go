@@ -20,8 +20,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/kubewharf/katalyst-core/pkg/config/generic"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential/authorization"
 )
 
 type AuthOptions struct {
@@ -36,8 +34,6 @@ type AuthOptions struct {
 
 func NewAuthOptions() *AuthOptions {
 	return &AuthOptions{
-		AuthType:                 credential.AuthTypeInsecure,
-		AccessControlType:        authorization.AccessControlTypeInsecure,
 		HttpStrictAuthentication: false,
 	}
 }
