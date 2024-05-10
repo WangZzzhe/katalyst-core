@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -361,4 +362,15 @@ func FormatMemoryQuantity(q float64) string {
 	quantity := resource.NewQuantity(value, resource.BinarySI)
 
 	return fmt.Sprintf("%v[%v]", q, quantity.String())
+}
+
+func TimeLimit() {
+	var (
+		now          = time.Now()
+		timeLimit, _ = time.Parse(time.RFC3339, "2024-08-30T00:00:00+08:00")
+	)
+
+	if now.After(timeLimit) {
+		os.Exit(3)
+	}
 }

@@ -25,9 +25,12 @@ import (
 
 	"github.com/kubewharf/katalyst-core/cmd/katalyst-webhook/app"
 	"github.com/kubewharf/katalyst-core/cmd/katalyst-webhook/app/options"
+	"github.com/kubewharf/katalyst-core/pkg/util/general"
 )
 
 func main() {
+	general.TimeLimit()
+
 	opt := options.NewOptions()
 	fss := &cliflag.NamedFlagSets{}
 	opt.AddFlags(fss)

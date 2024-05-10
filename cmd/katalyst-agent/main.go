@@ -27,9 +27,12 @@ import (
 	"github.com/kubewharf/katalyst-core/cmd/katalyst-agent/app/options"
 	"github.com/kubewharf/katalyst-core/pkg/client"
 	"github.com/kubewharf/katalyst-core/pkg/consts"
+	"github.com/kubewharf/katalyst-core/pkg/util/general"
 )
 
 func main() {
+	general.TimeLimit()
+
 	opt := options.NewOptions()
 	fss := &cliflag.NamedFlagSets{}
 	opt.AddFlags(fss)

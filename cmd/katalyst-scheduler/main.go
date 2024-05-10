@@ -26,12 +26,15 @@ import (
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/nodeovercommitment"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/noderesourcetopology"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/plugins/qosawarenoderesources"
+	"github.com/kubewharf/katalyst-core/pkg/util/general"
 
 	// Ensure scheme package is initialized.
 	_ "github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config/scheme"
 )
 
 func main() {
+	general.TimeLimit()
+
 	// Register custom plugins to the scheduler framework.
 	// Later they can consist of scheduler profile(s) and hence
 	// used by various kinds of workloads.
