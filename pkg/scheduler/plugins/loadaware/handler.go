@@ -16,6 +16,7 @@ import (
 const (
 	LoadAwarePodHandler         = "LoadAwarePodHandler"
 	LoadAwareNodeMonitorHandler = "LoadAwareNodeMonitorHandler"
+	LoadAwarePortraitHandler    = "LoadAwarePortraitHandler"
 )
 
 func RegisterPodHandler() {
@@ -43,6 +44,16 @@ func (p *Plugin) registerNodeMonitorHandler() {
 		LoadAwareNodeMonitorHandler,
 		func(_ informers.SharedInformerFactory, internalInformerFactory externalversions.SharedInformerFactory) {
 			p.nodeMonitorLister = internalInformerFactory.Node().V1alpha1().NodeMonitors().Lister()
+		},
+	)
+}
+
+func (p *Plugin) registerPortraitHandler() {
+	eventhandlers.RegisterEventHandler(
+		LoadAwarePortraitHandler,
+		func(_ informers.SharedInformerFactory, internalInformerFactory externalversions.SharedInformerFactory) {
+			p.portraitLister = internalInformerFactory.Resourceportrait().V1alpha1().Portraits().Lister()
+			p.portraitHasSynced = internalInformerFactory.Resourceportrait().V1alpha1().Portraits().Informer().HasSynced
 		},
 	)
 }

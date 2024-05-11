@@ -3,6 +3,7 @@ package loadaware
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"math"
 	"time"
 
@@ -26,6 +27,14 @@ func (p *Plugin) Score(_ context.Context, _ *framework.CycleState, pod *v1.Pod, 
 		return 0, nil
 	}
 
+	if p.args.EnablePortrait {
+		return p.scoreByPortrait(pod, nodeName)
+	}
+
+	return p.scoreByNodeMonitor(pod, nodeName)
+}
+
+func (p *Plugin) scoreByNodeMonitor(pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	nodeInfo, err := p.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
 		return 0, framework.NewStatus(framework.Unschedulable, fmt.Sprintf("get node %v from Snapshot: %v", nodeName, err))
@@ -61,18 +70,86 @@ func (p *Plugin) Score(_ context.Context, _ *framework.CycleState, pod *v1.Pod, 
 	return score, nil
 }
 
+func (p *Plugin) scoreByPortrait(pod *v1.Pod, nodeName string) (int64, *framework.Status) {
+	if pod == nil {
+		return framework.MinNodeScore, nil
+	}
+	nodeInfo, err := p.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
+	if err != nil {
+		return 0, framework.NewStatus(framework.Unschedulable, fmt.Sprintf("get node %v from Snapshot: %v", nodeName, err))
+	}
+
+	nodePredictUsage, err := p.getNodePredictUsage(pod, nodeName)
+	if err != nil {
+		klog.Error(err)
+		return framework.MinNodeScore, nil
+	}
+
+	var (
+		scoreSum, weightSum int64
+	)
+
+	for _, resourceName := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory} {
+		targetUsage, ok := p.args.ResourceToTargetMap[resourceName]
+		if !ok {
+			continue
+		}
+		weight, ok := p.args.ResourceToWeightMap[resourceName]
+		if !ok {
+			continue
+		}
+
+		total := nodeInfo.Node().Status.Allocatable[resourceName]
+		if total.IsZero() {
+			continue
+		}
+		var totalValue int64
+		if resourceName == v1.ResourceCPU {
+			totalValue = total.MilliValue()
+		} else {
+			totalValue = total.Value()
+		}
+
+		maxUsage := nodePredictUsage.max(resourceName)
+		usageRatio := maxUsage / float64(totalValue) * 100
+
+		score, err := targetLoadPacking(float64(targetUsage), usageRatio)
+		if err != nil {
+			klog.Errorf("pod %v node %v targetLoadPacking fail: %v", pod.Name, nodeName, err)
+			return framework.MinNodeScore, nil
+		}
+
+		klog.V(6).Infof("loadAware score pod %v, node %v, resource %v, target: %v, maxUsage: %v, total: %v, usageRatio: %v, score: %v",
+			pod.Name, nodeInfo.Node().Name, resourceName, targetUsage, maxUsage, totalValue, usageRatio, score)
+		scoreSum += score
+		weightSum += weight
+	}
+
+	if weightSum <= 0 {
+		err = fmt.Errorf("resource weight is zero, resourceWightMap: %v", p.args.ResourceToWeightMap)
+		klog.Error(err)
+		return framework.MinNodeScore, nil
+	}
+	score := scoreSum / weightSum
+	klog.V(6).Infof("loadAware score pod %v, node %v, finalScore: %v",
+		pod.Name, nodeInfo.Node().Name, score)
+	return score, nil
+}
+
 func (p *Plugin) estimatedAssignedPodUsage(nodeName string, nodeMonitor *v1alpha1.NodeMonitor) v1.ResourceList {
-	cache.RLock()
-	defer cache.RUnlock()
 	var (
 		estimatedUsed = make(map[v1.ResourceName]int64)
 		result        = v1.ResourceList{}
 	)
+	cache.RLock()
 	nodeCache, ok := cache.NodePodInfo[nodeName]
+	cache.RUnlock()
 	if !ok {
 		return result
 	}
 
+	nodeCache.RLock()
+	defer nodeCache.RUnlock()
 	for _, podInfo := range nodeCache.PodInfoMap {
 		if isNeedToEstimatedUsage(podInfo, nodeMonitor) {
 			estimated := estimatedPodUsed(podInfo.pod, p.args.ResourceToWeightMap, p.args.ResourceToScalingFactorMap)
@@ -201,4 +278,27 @@ func leastUsedScore(used, capacity int64) int64 {
 		return 0
 	}
 	return ((capacity - used) * framework.MaxNodeScore) / capacity
+}
+
+func targetLoadPacking(targetRatio, usageRatio float64) (int64, error) {
+	var score int64
+	if targetRatio <= 0 || targetRatio >= 100 {
+		return 0, fmt.Errorf("target %v is not supported", targetRatio)
+	}
+	if usageRatio < 0 {
+		klog.Warningf("usageRatio %v less than zero", usageRatio)
+		usageRatio = 0
+	}
+	if usageRatio > 100 {
+		klog.Warningf("usageRatio %v greater than 100", usageRatio)
+		return framework.MinNodeScore, nil
+	}
+
+	if usageRatio <= targetRatio {
+		score = int64(math.Round((100-targetRatio)*usageRatio/targetRatio + targetRatio))
+	} else {
+		score = int64(math.Round(targetRatio * (100 - usageRatio) / (100 - targetRatio)))
+	}
+
+	return score, nil
 }

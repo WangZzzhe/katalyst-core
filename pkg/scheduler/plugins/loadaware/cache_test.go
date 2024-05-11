@@ -1,6 +1,7 @@
 package loadaware
 
 import (
+	"k8s.io/kubernetes/pkg/scheduler/framework"
 	"testing"
 	"time"
 
@@ -65,4 +66,58 @@ func TestAddPod(t *testing.T) {
 			UID:  "testPod2",
 		}})
 	assert.Equal(t, 1, len(c.NodePodInfo["testNode"].PodInfoMap))
+}
+
+type testSharedLister struct {
+	nodes       []*v1.Node
+	nodeInfos   []*framework.NodeInfo
+	nodeInfoMap map[string]*framework.NodeInfo
+}
+
+func (f *testSharedLister) NodeInfos() framework.NodeInfoLister {
+	return f
+}
+
+func (f *testSharedLister) List() ([]*framework.NodeInfo, error) {
+	return f.nodeInfos, nil
+}
+
+func (f *testSharedLister) HavePodsWithAffinityList() ([]*framework.NodeInfo, error) {
+	return nil, nil
+}
+
+func (f *testSharedLister) HavePodsWithRequiredAntiAffinityList() ([]*framework.NodeInfo, error) {
+	return nil, nil
+}
+
+func (f *testSharedLister) Get(nodeName string) (*framework.NodeInfo, error) {
+	return f.nodeInfoMap[nodeName], nil
+}
+
+func newTestSharedLister(pods []*v1.Pod, nodes []*v1.Node) *testSharedLister {
+	nodeInfoMap := make(map[string]*framework.NodeInfo)
+	nodeInfos := make([]*framework.NodeInfo, 0)
+	for _, pod := range pods {
+		nodeName := pod.Spec.NodeName
+		if _, ok := nodeInfoMap[nodeName]; !ok {
+			nodeInfoMap[nodeName] = framework.NewNodeInfo()
+		}
+		nodeInfoMap[nodeName].AddPod(pod)
+	}
+	for _, node := range nodes {
+		if _, ok := nodeInfoMap[node.Name]; !ok {
+			nodeInfoMap[node.Name] = framework.NewNodeInfo()
+		}
+		nodeInfoMap[node.Name].SetNode(node)
+	}
+
+	for _, v := range nodeInfoMap {
+		nodeInfos = append(nodeInfos, v)
+	}
+
+	return &testSharedLister{
+		nodes:       nodes,
+		nodeInfos:   nodeInfos,
+		nodeInfoMap: nodeInfoMap,
+	}
 }
