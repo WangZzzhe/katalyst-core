@@ -25,6 +25,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -67,10 +68,8 @@ const (
 	metricsTagValueThresholdMetTypeSoft = "soft"
 )
 
-var (
-	handleMetrics = sets.NewString(
-		consts.MetricLoad1MinContainer,
-	)
+var handleMetrics = sets.NewString(
+	consts.MetricLoad1MinContainer,
 )
 
 type CPUPressureLoadEviction struct {
@@ -94,7 +93,8 @@ type CPUPressureLoadEviction struct {
 }
 
 func NewCPUPressureLoadEviction(emitter metrics.MetricEmitter, metaServer *metaserver.MetaServer,
-	conf *config.Configuration, state state.ReadonlyState) (CPUPressureEviction, error) {
+	conf *config.Configuration, state state.ReadonlyState,
+) (CPUPressureEviction, error) {
 	plugin := &CPUPressureLoadEviction{
 		state:          state,
 		emitter:        emitter,
@@ -132,7 +132,8 @@ func (p *CPUPressureLoadEviction) GetEvictPods(_ context.Context, _ *pluginapi.G
 }
 
 func (p *CPUPressureLoadEviction) ThresholdMet(_ context.Context,
-	_ *pluginapi.Empty) (*pluginapi.ThresholdMetResponse, error) {
+	_ *pluginapi.Empty,
+) (*pluginapi.ThresholdMetResponse, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -231,7 +232,8 @@ func (p *CPUPressureLoadEviction) ThresholdMet(_ context.Context,
 }
 
 func (p *CPUPressureLoadEviction) GetTopEvictionPods(_ context.Context,
-	request *pluginapi.GetTopEvictionPodsRequest) (*pluginapi.GetTopEvictionPodsResponse, error) {
+	request *pluginapi.GetTopEvictionPodsRequest,
+) (*pluginapi.GetTopEvictionPodsResponse, error) {
 	if request == nil {
 		return nil, fmt.Errorf("GetTopEvictionPods got nil request")
 	} else if len(request.ActivePods) == 0 {
@@ -438,7 +440,8 @@ func (p *CPUPressureLoadEviction) accumulateSharedPoolsLimit() int {
 // collectPoolLoad is specifically used for cpu-load in pool level,
 // and its upper-bound and lower-bound are calculated by pool size.
 func (p *CPUPressureLoadEviction) collectPoolLoad(dynamicConfig *dynamic.Configuration, pressureByPoolSize bool,
-	metricName string, metricValue float64, poolName string, poolSize int, collectTime int64) {
+	metricName string, metricValue float64, poolName string, poolSize int, collectTime int64,
+) {
 	snapshot := &MetricSnapshot{
 		Info: MetricInfo{
 			Name:       metricName,
@@ -480,7 +483,8 @@ func (p *CPUPressureLoadEviction) collectPoolLoad(dynamicConfig *dynamic.Configu
 // collectPoolMetricDefault is a common collect in pool level,
 // and its upper-bound and lower-bound are not defined.
 func (p *CPUPressureLoadEviction) collectPoolMetricDefault(dynamicConfig *dynamic.Configuration, _ bool,
-	metricName string, metricValue float64, poolName string, _ int, collectTime int64) {
+	metricName string, metricValue float64, poolName string, _ int, collectTime int64,
+) {
 	snapshot := &MetricSnapshot{
 		Info: MetricInfo{
 			Name:  metricName,
@@ -495,7 +499,8 @@ func (p *CPUPressureLoadEviction) collectPoolMetricDefault(dynamicConfig *dynami
 
 // pushMetric stores and push-in metric for the given pod
 func (p *CPUPressureLoadEviction) pushMetric(dynamicConfig *dynamic.Configuration,
-	metricName, entryName, subEntryName string, snapshot *MetricSnapshot) {
+	metricName, entryName, subEntryName string, snapshot *MetricSnapshot,
+) {
 	if p.metricsHistory[metricName] == nil {
 		p.metricsHistory[metricName] = make(Entries)
 	}
@@ -614,5 +619,8 @@ func (p *CPUPressureLoadEviction) checkPressureWithAdvisedThreshold() bool {
 	// for now, we consider ReservedResourceForAllocate as downgrading or manual intervention configuration,
 	// when it's set to a value greater than zero, fall back to static threshold
 	dynamicConfiguration := p.dynamicConf.GetDynamicConfiguration()
-	return dynamicConfiguration.EnableReclaim && dynamicConfiguration.ReservedResourceForAllocate.Cpu().Value() == 0
+	reservedResourceForAllocate := dynamicConfiguration.GetReservedResourceForAllocate(v1.ResourceList{
+		v1.ResourceCPU: *resource.NewQuantity(int64(p.metaServer.NumCPUs), resource.DecimalSI),
+	})
+	return dynamicConfiguration.EnableReclaim && reservedResourceForAllocate.Cpu().Value() == 0
 }

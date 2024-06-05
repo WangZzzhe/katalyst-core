@@ -50,7 +50,7 @@ func init() {
 	memadvisorplugin.RegisterInitializer(memadvisorplugin.MemoryGuard, memadvisorplugin.NewMemoryGuard)
 	memadvisorplugin.RegisterInitializer(memadvisorplugin.MemsetBinder, memadvisorplugin.NewMemsetBinder)
 	memadvisorplugin.RegisterInitializer(memadvisorplugin.NumaMemoryBalancer, memadvisorplugin.NewMemoryBalancer)
-
+	memadvisorplugin.RegisterInitializer(memadvisorplugin.TransparentMemoryOffloading, memadvisorplugin.NewTransparentMemoryOffloading)
 	memadvisorplugin.RegisterInitializer(provisioner.MemoryProvisioner, provisioner.NewMemoryProvisioner)
 }
 
@@ -92,7 +92,8 @@ type memoryResourceAdvisor struct {
 
 // NewMemoryResourceAdvisor returns a memoryResourceAdvisor instance
 func NewMemoryResourceAdvisor(conf *config.Configuration, extraConf interface{}, metaCache metacache.MetaCache,
-	metaServer *metaserver.MetaServer, emitter metrics.MetricEmitter) *memoryResourceAdvisor {
+	metaServer *metaserver.MetaServer, emitter metrics.MetricEmitter,
+) *memoryResourceAdvisor {
 	ra := &memoryResourceAdvisor{
 		startTime: time.Now(),
 
@@ -204,8 +205,9 @@ func (ra *memoryResourceAdvisor) update() error {
 		return fmt.Errorf("meta reader has not synced")
 	}
 
-	reservedForAllocate := ra.conf.GetDynamicConfiguration().
-		ReservedResourceForAllocate[v1.ResourceMemory]
+	reservedForAllocate := ra.conf.GetDynamicConfiguration().GetReservedResourceForAllocate(v1.ResourceList{
+		v1.ResourceMemory: *resource.NewQuantity(int64(ra.metaServer.MemoryCapacity), resource.BinarySI),
+	})[v1.ResourceMemory]
 
 	for _, headroomPolicy := range ra.headroomPolices {
 		// capacity and reserved can both be adjusted dynamically during running process

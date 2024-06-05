@@ -47,7 +47,8 @@ type HeadroomAssemblerDedicated struct {
 
 func NewHeadroomAssemblerDedicated(conf *config.Configuration, _ interface{}, regionMap *map[string]region.QoSRegion,
 	reservedForReclaim *map[int]int, numaAvailable *map[int]int, nonBindingNumas *machine.CPUSet,
-	metaReader metacache.MetaReader, metaServer *metaserver.MetaServer, emitter metrics.MetricEmitter) HeadroomAssembler {
+	metaReader metacache.MetaReader, metaServer *metaserver.MetaServer, emitter metrics.MetricEmitter,
+) HeadroomAssembler {
 	return &HeadroomAssemblerDedicated{
 		conf:               conf,
 		regionMap:          regionMap,
@@ -63,7 +64,9 @@ func NewHeadroomAssemblerDedicated(conf *config.Configuration, _ interface{}, re
 
 func (ha *HeadroomAssemblerDedicated) GetHeadroom() (resource.Quantity, error) {
 	dynamicConfig := ha.conf.GetDynamicConfiguration()
-	reserved := ha.conf.GetDynamicConfiguration().ReservedResourceForAllocate[v1.ResourceCPU]
+	reserved := ha.conf.GetDynamicConfiguration().GetReservedResourceForAllocate(v1.ResourceList{
+		v1.ResourceCPU: *resource.NewQuantity(int64(ha.metaServer.NumCPUs), resource.DecimalSI),
+	})[v1.ResourceCPU]
 
 	// return zero when reclaim is disabled
 	if !dynamicConfig.EnableReclaim {

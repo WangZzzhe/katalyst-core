@@ -41,13 +41,10 @@ const (
 )
 
 type RodanMetricsProvisioner struct {
-	client *client.RodanClient
-
+	client      *client.RodanClient
 	metricStore *utilmetric.MetricStore
-
-	podFetcher pod.PodFetcher
-
-	emitter metrics.MetricEmitter
+	podFetcher  pod.PodFetcher
+	emitter     metrics.MetricEmitter
 
 	synced bool
 }
@@ -58,7 +55,8 @@ func NewRodanMetricsProvisioner(
 	metricConf *metaserver.MetricConfiguration,
 	emitter metrics.MetricEmitter,
 	fetcher pod.PodFetcher,
-	metricStore *utilmetric.MetricStore) metrictypes.MetricsProvisioner {
+	metricStore *utilmetric.MetricStore,
+) metrictypes.MetricsProvisioner {
 	return &RodanMetricsProvisioner{
 		metricStore: metricStore,
 		podFetcher:  fetcher,
@@ -74,15 +72,10 @@ func (i *RodanMetricsProvisioner) Run(ctx context.Context) {
 
 func (i *RodanMetricsProvisioner) sample(ctx context.Context) {
 	i.updateNodeStats()
-
 	i.updateNUMAStats()
-
 	i.updateNodeCgroupStats()
-
 	i.updateNodeSysctlStats()
-
 	i.updateCoreStats()
-
 	i.updatePodStats(ctx)
 
 	i.synced = true
@@ -93,7 +86,6 @@ func (i *RodanMetricsProvisioner) HasSynced() bool {
 }
 
 func (i *RodanMetricsProvisioner) updateNodeStats() {
-
 	// update node memory stats
 	nodeMemoryData, err := i.client.GetNodeMemoryStats()
 	if err != nil {
@@ -105,7 +97,6 @@ func (i *RodanMetricsProvisioner) updateNodeStats() {
 
 // updateNodeCgroupStats update only besteffort and burstable QoS level cgroup stats
 func (i *RodanMetricsProvisioner) updateNodeCgroupStats() {
-
 	// update cgroup memory stats
 	memoryCgroupData, err := i.client.GetNodeCgroupMemoryStats()
 	if err != nil {
@@ -116,7 +107,6 @@ func (i *RodanMetricsProvisioner) updateNodeCgroupStats() {
 }
 
 func (i *RodanMetricsProvisioner) updateNodeSysctlStats() {
-
 	// update node sysctl data
 	sysctlData, err := i.client.GetNodeSysctl()
 	if err != nil {
@@ -127,7 +117,6 @@ func (i *RodanMetricsProvisioner) updateNodeSysctlStats() {
 }
 
 func (i *RodanMetricsProvisioner) updateNUMAStats() {
-
 	// update NUMA memory stats
 	NUMAMemoryData, err := i.client.GetNUMAMemoryStats()
 	if err != nil {
@@ -138,7 +127,6 @@ func (i *RodanMetricsProvisioner) updateNUMAStats() {
 }
 
 func (i *RodanMetricsProvisioner) updateCoreStats() {
-
 	// update core CPU stats
 	coreCPUData, err := i.client.GetCoreCPUStats()
 	if err != nil {

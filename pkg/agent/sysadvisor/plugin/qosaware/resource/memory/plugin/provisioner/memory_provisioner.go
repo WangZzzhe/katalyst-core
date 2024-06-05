@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/kubewharf/katalyst-core/pkg/agent/qrm-plugins/memory/dynamicpolicy/memoryadvisor"
 	"github.com/kubewharf/katalyst-core/pkg/agent/sysadvisor/metacache"
@@ -60,7 +61,8 @@ type memoryProvisioner struct {
 }
 
 func NewMemoryProvisioner(conf *config.Configuration, extraConfig interface{}, metaReader metacache.MetaReader,
-	metaServer *metaserver.MetaServer, emitter metrics.MetricEmitter) plugin.MemoryAdvisorPlugin {
+	metaServer *metaserver.MetaServer, emitter metrics.MetricEmitter,
+) plugin.MemoryAdvisorPlugin {
 	mp := &memoryProvisioner{
 		conf:             conf,
 		extraConfig:      extraConfig,
@@ -95,8 +97,9 @@ func (m *memoryProvisioner) initializeMemoryProvisioner() error {
 }
 
 func (m *memoryProvisioner) Reconcile(status *types.MemoryPressureStatus) (err error) {
-	reservedForAllocate := m.conf.GetDynamicConfiguration().
-		ReservedResourceForAllocate[v1.ResourceMemory]
+	reservedForAllocate := m.conf.GetDynamicConfiguration().GetReservedResourceForAllocate(v1.ResourceList{
+		v1.ResourceMemory: *resource.NewQuantity(int64(m.metaServer.MemoryCapacity), resource.BinarySI),
+	})[v1.ResourceMemory]
 	m.policy.SetEssentials(
 		types.ResourceEssentials{
 			EnableReclaim:       m.conf.GetDynamicConfiguration().EnableReclaim,

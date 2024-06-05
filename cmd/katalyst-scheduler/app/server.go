@@ -361,9 +361,5 @@ func Setup(ctx context.Context, opts *options.Options, outOfTreeRegistryOptions 
 		handlerFunc(cc.InformerFactory, cc.InternalInformerFactory)
 	}
 
-	for _, handlerFunc := range eventhandlers.ListEventHandlerFunc() {
-		handlerFunc(cc.InformerFactory, cc.InternalInformerFactory)
-	}
-
 	return &cc, sched, nil
 }

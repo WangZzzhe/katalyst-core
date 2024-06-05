@@ -143,6 +143,7 @@ func (n *NodeOvercommitment) nodeOvercommitRatio(nodeInfo *framework.NodeInfo) (
 	klog.V(6).Infof("node %v enable dynamic overcommit: %v", nodeInfo.Node().Name, enableDynamicOvercommit)
 
 	CPUOvercommitRatio, err = overcommitutil.OvercommitRatioValidate(annotation, consts.NodeAnnotationCPUOvercommitRatioKey, consts.NodeAnnotationPredictCPUOvercommitRatioKey, consts.NodeAnnotationRealtimeCPUOvercommitRatioKey, enableDynamicOvercommit)
+
 	if err != nil {
 		klog.Error(err)
 		return
