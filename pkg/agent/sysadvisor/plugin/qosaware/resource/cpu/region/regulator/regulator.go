@@ -108,6 +108,7 @@ func (c *CPURegulator) SetEssentials(essentials types.ResourceEssentials) {
 // SetLatestRequirement overwrites the latest regulated cpu requirement
 func (c *CPURegulator) SetLatestRequirement(latestCPURequirement int) {
 	c.latestCPURequirement = latestCPURequirement
+	klog.V(6).Infof("SetLatestRequirement: %v", latestCPURequirement)
 }
 
 // Regulate runs an episode of cpu regulation to restrict raw cpu requirement and store the result
@@ -124,6 +125,8 @@ func (c *CPURegulator) Regulate(cpuRequirement float64) {
 	if cpuRequirementClamp != c.latestCPURequirement {
 		c.latestCPURequirement = cpuRequirementClamp
 		c.latestRampDownTime = time.Now()
+		klog.V(6).Infof("set latestCPURequirement, latestCPURequirement: %v, latestRampDownTime: %v",
+			c.latestCPURequirement, c.latestRampDownTime)
 	}
 }
 
@@ -134,6 +137,9 @@ func (c *CPURegulator) GetRequirement() int {
 
 func (c *CPURegulator) slowdown(cpuRequirement int) int {
 	now := time.Now()
+
+	klog.V(6).Infof("CPURegulator slowdown, cpuRequirement: %v, latestCPURequirement: %v, latestRampDownTime: %v",
+		cpuRequirement, c.latestCPURequirement, c.latestRampDownTime.String())
 
 	// Restrict ramp down frequency
 	if cpuRequirement < c.latestCPURequirement && now.Before(c.latestRampDownTime.Add(c.minRampDownPeriod)) {

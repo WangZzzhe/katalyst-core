@@ -145,6 +145,23 @@ func ResourcesEqual(a, b v1.ResourceList) bool {
 	return true
 }
 
+// ResourcesLess checks whether the given resources a are less than b
+func ResourcesLess(a, b v1.ResourceList, resourceNameList []v1.ResourceName) bool {
+	for _, name := range resourceNameList {
+		quantityA, okA := a[name]
+		quantityB, okB := b[name]
+		if okA != okB {
+			return okA
+		} else if okA {
+			if quantityA.Cmp(quantityB) < 0 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // AddResources sums up two ResourceList, and returns the summed as results.
 func AddResources(a, b v1.ResourceList) v1.ResourceList {
 	res := make(v1.ResourceList)
@@ -283,6 +300,9 @@ func MultiplyMilliQuantity(quantity resource.Quantity, y float64) resource.Quant
 	if 0 == y {
 		return *resource.NewMilliQuantity(0, quantity.Format)
 	}
+	if 1 == y {
+		return quantity
+	}
 
 	milliValue := quantity.MilliValue()
 	if 0 == milliValue {
@@ -297,6 +317,9 @@ func MultiplyMilliQuantity(quantity resource.Quantity, y float64) resource.Quant
 func MultiplyQuantity(quantity resource.Quantity, y float64) resource.Quantity {
 	if 0 == y {
 		return *resource.NewQuantity(0, quantity.Format)
+	}
+	if 1 == y {
+		return quantity
 	}
 
 	value := quantity.Value()

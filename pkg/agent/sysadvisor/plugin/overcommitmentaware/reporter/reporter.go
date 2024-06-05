@@ -26,8 +26,6 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
-	"k8s.io/kubernetes/pkg/features"
 
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	"github.com/kubewharf/katalyst-api/pkg/plugins/registration"
@@ -37,6 +35,7 @@ import (
 	"github.com/kubewharf/katalyst-core/pkg/metaserver"
 	"github.com/kubewharf/katalyst-core/pkg/metrics"
 	"github.com/kubewharf/katalyst-core/pkg/util"
+	utilkubeconfig "github.com/kubewharf/katalyst-core/pkg/util/kubelet/config"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
 )
 
@@ -154,7 +153,7 @@ func (o *OvercommitRatioReporterPlugin) Stop() error {
 // GetReportContent get overcommitment ratio from manager directly.
 // Since the metrics collected by Manager are already an average within a time period,
 // we expect a faster response to node load fluctuations to avoid excessive overcommit of online resources.
-func (o *OvercommitRatioReporterPlugin) GetReportContent(_ context.Context, _ *v1alpha1.Empty) (*v1alpha1.GetReportContentResponse, error) {
+func (o *OvercommitRatioReporterPlugin) GetReportContent(ctx context.Context, _ *v1alpha1.Empty) (*v1alpha1.GetReportContentResponse, error) {
 	response := &v1alpha1.GetReportContentResponse{
 		Content: []*v1alpha1.ReportContent{},
 	}
@@ -174,7 +173,7 @@ func (o *OvercommitRatioReporterPlugin) GetReportContent(_ context.Context, _ *v
 	response.Content = append(response.Content, overcommitRatioContent)
 
 	// get topologyProvider and guaranteed cpus
-	topologyProviderContent, err := o.getTopologyProviderReportContent(o.ctx)
+	topologyProviderContent, err := o.getTopologyProviderReportContent(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +266,7 @@ func (o *OvercommitRatioReporterPlugin) getTopologyProvider(ctx context.Context)
 		return nil, fmt.Errorf("get kubelet config fail: %v", err)
 	}
 
-	return generateProviderPolicies(klConfig), nil
+	return utilkubeconfig.GetInTreeProviderPolicies(klConfig)
 }
 
 func (o *OvercommitRatioReporterPlugin) getGuaranteedCPUs(ctx context.Context) (string, error) {
@@ -284,33 +283,4 @@ func (o *OvercommitRatioReporterPlugin) getGuaranteedCPUs(ctx context.Context) (
 	}
 
 	return strconv.Itoa(cpus), nil
-}
-
-func generateProviderPolicies(kubeletConfig *kubeletconfigv1beta1.KubeletConfiguration) map[string]string {
-	klog.V(5).Infof("generateProviderPolicies featureGates: %v, cpuManagerPolicy: %v, memoryManagerPolicy: %v",
-		kubeletConfig.FeatureGates, features.CPUManager, features.MemoryManager)
-
-	featureGates := kubeletConfig.FeatureGates
-
-	res := map[string]string{
-		consts.KCNRAnnotationCPUManager:    string(consts.CPUManagerOff),
-		consts.KCNRAnnotationMemoryManager: string(consts.MemoryManagerOff),
-	}
-
-	on, ok := featureGates[string(features.CPUManager)]
-	// default true
-	if (ok && on) || (!ok) {
-		if kubeletConfig.CPUManagerPolicy != "" {
-			res[consts.KCNRAnnotationCPUManager] = kubeletConfig.CPUManagerPolicy
-		}
-	}
-
-	on, ok = featureGates[string(features.MemoryManager)]
-	if (ok && on) || (!ok) {
-		if kubeletConfig.MemoryManagerPolicy != "" {
-			res[consts.KCNRAnnotationMemoryManager] = kubeletConfig.MemoryManagerPolicy
-		}
-	}
-
-	return res
 }
