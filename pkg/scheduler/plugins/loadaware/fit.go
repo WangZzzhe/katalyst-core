@@ -22,8 +22,11 @@ func (p *Plugin) Filter(_ context.Context, _ *framework.CycleState, pod *v1.Pod,
 		return status
 	}
 
-	status = p.fitByPortrait(pod, nodeInfo)
-
+	if p.args.EnablePortrait {
+		status = p.fitByPortrait(pod, nodeInfo)
+		return status
+	}
+	klog.V(6).Infof("loadaware portrait unable, skip")
 	return status
 }
 
@@ -71,6 +74,7 @@ func (p *Plugin) fitByNodeMonitor(nodeInfo *framework.NodeInfo) *framework.Statu
 		}
 		used := usageInfo[resourceName]
 		usage := int64(math.Round(float64(used.MilliValue()) / float64(total.MilliValue()) * 100))
+		klog.V(6).Infof("node %v usage %v, threshold %v", nodeInfo.Node().Name, usage, threshold)
 		if usage > threshold {
 			return framework.NewStatus(framework.Unschedulable, fmt.Sprintf("node(s) %s usage exceed threshold, usage:%v, threshold: %v ", resourceName, usage, threshold))
 		}
