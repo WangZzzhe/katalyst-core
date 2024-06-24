@@ -3,6 +3,7 @@ package loadaware
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"math"
 	"time"
 
@@ -58,6 +59,7 @@ func (p *Plugin) Score(_ context.Context, _ *framework.CycleState, pod *v1.Pod, 
 		}
 	}
 	score := loadAwareSchedulingScorer(finalNodeUsedOfIndicators, node.Status.Allocatable, p.args.ResourceToWeightMap, p.args.CalculateIndicatorWeight)
+	klog.V(6).Infof("loadAware score node: %v, score: %v, nodeUsage: %v", node.Name, score, finalNodeUsedOfIndicators)
 	return score, nil
 }
 

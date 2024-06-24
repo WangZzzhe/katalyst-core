@@ -13,7 +13,7 @@ import (
 )
 
 func (p *Plugin) Filter(_ context.Context, _ *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
-	if p.IsLoadAareEnabled(pod) {
+	if !p.IsLoadAareEnabled(pod) {
 		return nil
 	}
 
@@ -60,6 +60,7 @@ func (p *Plugin) Filter(_ context.Context, _ *framework.CycleState, pod *v1.Pod,
 		}
 		used := usageInfo[resourceName]
 		usage := int64(math.Round(float64(used.MilliValue()) / float64(total.MilliValue()) * 100))
+		klog.V(6).Infof("loadAware fit node: %v, resource: %v, usage: %v, threshold: %v", node.Name, resourceName, usage, threshold)
 		if usage > threshold {
 			return framework.NewStatus(framework.Unschedulable, fmt.Sprintf("node(s) %s usage exceed threshold, usage:%v, threshold: %v ", resourceName, usage, threshold))
 		}
