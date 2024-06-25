@@ -70,14 +70,13 @@ func (c *Cache) ReconcilePredictUsage() {
 	defer c.RUnlock()
 
 	for nodeName, nc := range c.NodePodInfo {
-		nc.Lock()
-
 		var (
 			nodePredictUsage = &ResourceUsage{
 				Cpu:    make([]float64, portraitItemsLength, portraitItemsLength),
 				Memory: make([]float64, portraitItemsLength, portraitItemsLength)}
 			err error
 		)
+		nc.Lock()
 		for _, podInfo := range nc.PodInfoMap {
 			podResourceUsage := c.podPortraitLister.GetPodPortrait(podInfo.pod)
 			err = nodePredictUsage.add(podResourceUsage)
@@ -88,12 +87,12 @@ func (c *Cache) ReconcilePredictUsage() {
 			klog.V(6).Infof("ReconcilePredictUsage,pod %v cpu resourceUsage: %v, memory resourceUsage: %v", podInfo.pod.Name, podResourceUsage.Cpu, podResourceUsage.Memory)
 		}
 		if err != nil {
+			nc.Unlock()
 			klog.Errorf("node %v update predict usage fail: %v, keep old predictUsage", nodeName, err)
 			continue
 		}
 		nc.PredictUsage = nodePredictUsage
 		klog.V(6).Infof("ReconcilePredictUsage, node %v cpu resourceUsage: %v, memory resourceUsage: %v", nodeName, nodePredictUsage.Cpu, nodePredictUsage.Memory)
-
 		nc.Unlock()
 	}
 
