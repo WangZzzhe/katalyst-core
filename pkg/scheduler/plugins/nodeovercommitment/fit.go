@@ -19,10 +19,10 @@ package nodeovercommitment
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 
 	"github.com/kubewharf/katalyst-api/pkg/consts"
@@ -40,9 +40,9 @@ func (s *preFilterState) Clone() framework.StateData {
 	return s
 }
 
-func (n *NodeOvercommitment) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) (*framework.PreFilterResult, *framework.Status) {
+func (n *NodeOvercommitment) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) *framework.Status {
 	cycleState.Write(preFilterStateKey, computePodResourceRequest(pod))
-	return nil, nil
+	return nil
 }
 
 func (n *NodeOvercommitment) PreFilterExtensions() framework.PreFilterExtensions {

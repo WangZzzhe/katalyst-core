@@ -19,15 +19,15 @@ package provider
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"time"
 
+	"github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/provider"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apitypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	"k8s.io/metrics/pkg/apis/custom_metrics"
 	"k8s.io/metrics/pkg/apis/external_metrics"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/provider"
 
 	katalyst_base "github.com/kubewharf/katalyst-core/cmd/base"
 	"github.com/kubewharf/katalyst-core/pkg/custom-metric/store"
@@ -133,7 +133,7 @@ func (m *MetricProviderImp) GetMetricByName(ctx context.Context, namespacedName 
 	return res, nil
 }
 
-func (m *MetricProviderImp) GetMetricBySelector(ctx context.Context, namespace string, objSelector labels.Selector,
+func (m *MetricProviderImp) GetMetricBySelector(namespace string, objSelector labels.Selector,
 	info provider.CustomMetricInfo, metricSelector labels.Selector,
 ) (*custom_metrics.MetricValueList, error) {
 	klog.Infof("GetMetricBySelector: metric name %v, object %v, namespace %v, objSelector %v, metricSelector %v",
@@ -148,7 +148,7 @@ func (m *MetricProviderImp) GetMetricBySelector(ctx context.Context, namespace s
 		m.emitMetrics("GetMetricBySelector", info.Metric, "", start, resultCount, err)
 	}()
 
-	metricList, err = m.storeImp.GetMetric(ctx, namespace, info.Metric, "",
+	metricList, err = m.storeImp.GetMetric(context.TODO(), namespace, info.Metric, "",
 		&info.GroupResource, objSelector, metricSelector, false)
 	if err != nil {
 		klog.Errorf("GetMetric err: %v", err)
@@ -213,7 +213,7 @@ func (m *MetricProviderImp) ListAllMetrics() []provider.CustomMetricInfo {
 	return res
 }
 
-func (m *MetricProviderImp) GetExternalMetric(ctx context.Context, namespace string, metricSelector labels.Selector,
+func (m *MetricProviderImp) GetExternalMetric(namespace string, metricSelector labels.Selector,
 	info provider.ExternalMetricInfo,
 ) (*external_metrics.ExternalMetricValueList, error) {
 	klog.Infof("GetExternalMetric: metric name %v, namespace %v, metricSelector %v", info.Metric, namespace, metricSelector)
@@ -227,7 +227,7 @@ func (m *MetricProviderImp) GetExternalMetric(ctx context.Context, namespace str
 		m.emitMetrics("GetExternalMetric", info.Metric, "", start, resultCount, err)
 	}()
 
-	metricList, err = m.storeImp.GetMetric(ctx, namespace, info.Metric, "", nil, nil, metricSelector, true)
+	metricList, err = m.storeImp.GetMetric(context.TODO(), namespace, info.Metric, "", nil, nil, metricSelector, true)
 	if err != nil {
 		klog.Errorf("GetMetric err: %v", err)
 		return nil, err

@@ -17,9 +17,9 @@ limitations under the License.
 package provider
 
 import (
-	"context"
 	"time"
 
+	"github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/provider"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -27,14 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/metrics/pkg/apis/custom_metrics"
 	"k8s.io/metrics/pkg/apis/external_metrics"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/provider"
 )
 
 type DummyMetricQuery struct{}
 
 var _ MetricProvider = DummyMetricQuery{}
 
-func (d DummyMetricQuery) GetMetricByName(_ context.Context, _ types.NamespacedName,
+func (d DummyMetricQuery) GetMetricByName(_ types.NamespacedName,
 	_ provider.CustomMetricInfo, _ labels.Selector,
 ) (*custom_metrics.MetricValue, error) {
 	return &custom_metrics.MetricValue{
@@ -51,7 +50,7 @@ func (d DummyMetricQuery) GetMetricByName(_ context.Context, _ types.NamespacedN
 	}, nil
 }
 
-func (d DummyMetricQuery) GetMetricBySelector(_ context.Context, _ string, _ labels.Selector,
+func (d DummyMetricQuery) GetMetricBySelector(_ string, _ labels.Selector,
 	_ provider.CustomMetricInfo, _ labels.Selector,
 ) (*custom_metrics.MetricValueList, error) {
 	return &custom_metrics.MetricValueList{
@@ -82,7 +81,7 @@ func (d DummyMetricQuery) ListAllMetrics() []provider.CustomMetricInfo {
 	}
 }
 
-func (d DummyMetricQuery) GetExternalMetric(_ context.Context, _ string, _ labels.Selector,
+func (d DummyMetricQuery) GetExternalMetric(_ string, _ labels.Selector,
 	_ provider.ExternalMetricInfo,
 ) (*external_metrics.ExternalMetricValueList, error) {
 	return &external_metrics.ExternalMetricValueList{

@@ -18,7 +18,7 @@ package options
 
 import (
 	"fmt"
-
+	"k8s.io/klog/v2"
 	scheduleroptions "k8s.io/kubernetes/cmd/kube-scheduler/app/options"
 
 	"github.com/kubewharf/katalyst-api/pkg/client/informers/externalversions"
@@ -37,8 +37,12 @@ type Options struct {
 
 // NewOptions returns default scheduler app options.
 func NewOptions() *Options {
+	op, err := scheduleroptions.NewOptions()
+	if err != nil {
+		klog.Fatalf("unable to initialize command options: %v", err)
+	}
 	return &Options{
-		Options:    scheduleroptions.NewOptions(),
+		Options:    op,
 		QoSOptions: options.NewQoSOptions(),
 	}
 }

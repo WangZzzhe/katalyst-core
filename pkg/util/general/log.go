@@ -18,12 +18,11 @@ package general
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-
-	"k8s.io/klog/v2"
 )
 
 type LoggingPKG int
@@ -113,59 +112,63 @@ func loggingPath(pkg LoggingPKG, message string, params ...interface{}) string {
 }
 
 func InfoS(message string, params ...interface{}) {
-	klog.InfoSDepth(1, logging(message), params...)
+	klog.InfoS(logging(message), params...)
 }
 
 func InfoSPath(pkg LoggingPKG, message string, params ...interface{}) {
-	klog.InfoSDepth(1, loggingPath(pkg, message), params...)
+	klog.InfoS(loggingPath(pkg, message), params...)
 }
 
 func Infof(message string, params ...interface{}) {
-	klog.InfofDepth(1, logging(message, params...))
+	klog.InfoDepth(1, logging(message, params...))
 }
 
 func InfofPath(pkg LoggingPKG, message string, params ...interface{}) {
-	klog.InfofDepth(1, loggingPath(pkg, message, params...))
+	klog.InfoDepth(1, loggingPath(pkg, message, params...))
 }
 
 func InfofV(level int, message string, params ...interface{}) {
-	klog.V(klog.Level(level)).InfofDepth(1, logging(message, params...))
+	if klog.V(klog.Level(level)).Enabled() {
+		klog.InfoDepth(1, logging(message, params...))
+	}
 }
 
 func InfofVPath(pkg LoggingPKG, level int, message string, params ...interface{}) {
-	klog.V(klog.Level(level)).InfofDepth(1, loggingPath(pkg, message, params...))
+	if klog.V(klog.Level(level)).Enabled() {
+		klog.InfoDepth(1, loggingPath(pkg, message, params...))
+	}
 }
 
 func Warningf(message string, params ...interface{}) {
-	klog.WarningfDepth(1, logging(message, params...))
+	klog.WarningDepth(1, logging(message, params...))
 }
 
 func WarningfPath(pkg LoggingPKG, message string, params ...interface{}) {
-	klog.WarningfDepth(1, loggingPath(pkg, message, params...))
+	klog.WarningDepth(1, loggingPath(pkg, message, params...))
 }
 
 func Errorf(message string, params ...interface{}) {
-	klog.ErrorfDepth(1, logging(message, params...))
+	klog.ErrorDepth(1, logging(message, params...))
 }
 
 func ErrorfPath(pkg LoggingPKG, message string, params ...interface{}) {
-	klog.ErrorfDepth(1, loggingPath(pkg, message, params...))
+	klog.ErrorDepth(1, loggingPath(pkg, message, params...))
 }
 
 func ErrorS(err error, message string, params ...interface{}) {
-	klog.ErrorSDepth(1, err, logging(message), params...)
+	klog.ErrorS(err, logging(message), params...)
 }
 
 func ErrorSPath(pkg LoggingPKG, err error, message string, params ...interface{}) {
-	klog.ErrorSDepth(1, err, loggingPath(pkg, message), params...)
+	klog.ErrorS(err, loggingPath(pkg, message), params...)
 }
 
 func Fatalf(message string, params ...interface{}) {
-	klog.FatalfDepth(1, logging(message, params...))
+	klog.FatalDepth(1, logging(message, params...))
 }
 
 func FatalfPath(pkg LoggingPKG, message string, params ...interface{}) {
-	klog.FatalfDepth(1, loggingPath(pkg, message, params...))
+	klog.FatalDepth(1, loggingPath(pkg, message, params...))
 }
 
 type Logger struct {
@@ -185,29 +188,31 @@ func (l Logger) logging(message string, params ...interface{}) string {
 }
 
 func (l Logger) InfoS(message string, params ...interface{}) {
-	klog.InfoSDepth(1, l.logging(message), params...)
+	klog.InfoS(l.logging(message), params...)
 }
 
 func (l Logger) Infof(message string, params ...interface{}) {
-	klog.InfofDepth(1, l.logging(message, params...))
+	klog.InfoDepth(1, l.logging(message, params...))
 }
 
 func (l Logger) InfofV(level int, message string, params ...interface{}) {
-	klog.V(klog.Level(level)).InfofDepth(1, l.logging(message, params...))
+	if klog.V(klog.Level(level)).Enabled() {
+		klog.InfoDepth(1, l.logging(message, params...))
+	}
 }
 
 func (l Logger) Warningf(message string, params ...interface{}) {
-	klog.WarningfDepth(1, l.logging(message, params...))
+	klog.WarningDepth(1, l.logging(message, params...))
 }
 
 func (l Logger) Errorf(message string, params ...interface{}) {
-	klog.ErrorfDepth(1, l.logging(message, params...))
+	klog.ErrorDepth(1, l.logging(message, params...))
 }
 
 func (l Logger) ErrorS(err error, message string, params ...interface{}) {
-	klog.ErrorSDepth(1, err, l.logging(message), params...)
+	klog.ErrorS(err, l.logging(message), params...)
 }
 
 func (l Logger) Fatalf(message string, params ...interface{}) {
-	klog.FatalfDepth(1, l.logging(message, params...))
+	klog.FatalDepth(1, l.logging(message, params...))
 }

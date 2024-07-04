@@ -19,16 +19,16 @@ package native
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"time"
 
+	"github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/dynamicmapper"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/dynamicmapper"
 )
 
 // DynamicInformer keeps the informer-related contents for each workload

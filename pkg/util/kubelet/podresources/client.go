@@ -17,33 +17,11 @@ limitations under the License.
 package podresources
 
 import (
-	"context"
-	"fmt"
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	v1 "k8s.io/kubelet/pkg/apis/podresources/v1"
-	"k8s.io/kubernetes/pkg/kubelet/util"
 )
 
 // GetClientFunc is a function to get a client for the PodResourcesLister grpc service.
 type GetClientFunc func(socket string, connectionTimeout time.Duration, maxMsgSize int) (v1.PodResourcesListerClient, *grpc.ClientConn, error)
-
-// GetV1Client returns a client for the PodResourcesLister grpc service, and it is referring from upstream k8s's GetV1Client,
-// which is also an implement of GetClientFunc.
-func GetV1Client(socket string, connectionTimeout time.Duration, maxMsgSize int) (v1.PodResourcesListerClient, *grpc.ClientConn, error) {
-	addr, dialer, err := util.GetAddressAndDialer(socket)
-	if err != nil {
-		return nil, nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), connectionTimeout)
-	defer cancel()
-
-	conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(dialer), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)))
-	if err != nil {
-		return nil, nil, fmt.Errorf("error dialing socket %s: %v", socket, err)
-	}
-	return v1.NewPodResourcesListerClient(conn), conn, nil
-}

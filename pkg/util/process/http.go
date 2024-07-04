@@ -21,20 +21,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/klog/v2"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/kubewharf/katalyst-core/pkg/metrics"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog/v2"
-
-	"github.com/kubewharf/katalyst-core/pkg/metrics"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential/authorization"
 )
 
 const (
@@ -71,9 +68,7 @@ type visitor struct {
 }
 
 type HTTPHandler struct {
-	mux       sync.Mutex
-	cred      credential.Credential
-	accessCtl authorization.AccessControl
+	mux sync.Mutex
 
 	enabled              sets.String
 	visitors             map[string]*visitor
@@ -86,12 +81,8 @@ type HTTPHandler struct {
 
 func NewHTTPHandler(enabled []string, skipAuthURLPrefix []string, strictAuthentication bool, emitter metrics.MetricEmitter) *HTTPHandler {
 	return &HTTPHandler{
-		visitors: make(map[string]*visitor),
-		enabled:  sets.NewString(enabled...),
-		// no credential by default
-		cred: credential.DefaultCredential(),
-		// no authorization check by default
-		accessCtl:            authorization.DefaultAccessControl(),
+		visitors:             make(map[string]*visitor),
+		enabled:              sets.NewString(enabled...),
 		skipAuthURLPrefix:    skipAuthURLPrefix,
 		strictAuthentication: strictAuthentication,
 		emitter:              emitter,
@@ -101,11 +92,6 @@ func NewHTTPHandler(enabled []string, skipAuthURLPrefix []string, strictAuthenti
 func (h *HTTPHandler) Run(ctx context.Context) {
 	if h.enabled.Has(HTTPChainRateLimiter) {
 		go wait.Until(h.cleanupVisitor, httpCleanupVisitorPeriod, ctx.Done())
-	}
-
-	if h.enabled.Has(HTTPChainCredential) {
-		h.cred.Run(ctx)
-		h.accessCtl.Run(ctx)
 	}
 }
 
@@ -154,42 +140,12 @@ func (h *HTTPHandler) withCredential(f http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		var authInfo credential.AuthInfo
 		shouldSkipAuth := skipAuth(r)
 		if shouldSkipAuth {
 			f(w, r)
 			return
 		}
 
-		var err error
-		authInfo, err = h.cred.Auth(r)
-		if err != nil {
-			if h.strictAuthentication {
-				klog.Warningf("request %+v doesn't have proper auth", r.URL)
-				w.Header().Set("Katalyst-Authenticate", `Basic realm="Restricted"`)
-				w.WriteHeader(http.StatusUnauthorized)
-				_ = h.emitter.StoreInt64(HTTPAuthenticateFailed, 1, metrics.MetricTypeNameCount,
-					metrics.MetricTag{Key: "path", Val: r.URL.Path})
-				return
-			}
-		} else {
-			r = attachAuthInfo(r, authInfo)
-			klog.V(4).Infof("user %v request %+v  with auth type %v", authInfo.SubjectName(), r.URL, authInfo.AuthType())
-			if verifyErr := h.accessCtl.Verify(authInfo, authorization.PermissionTypeHttpEndpoint); verifyErr != nil &&
-				h.strictAuthentication {
-				klog.Warningf("request %+v with user %v doesn't have permission, msg: %v", r.URL, authInfo.SubjectName(), verifyErr)
-				w.Header().Set("Katalyst-Authenticate", `Basic realm="Restricted"`)
-				w.WriteHeader(http.StatusUnauthorized)
-				_ = h.emitter.StoreInt64(HTTPNoPermission, 1, metrics.MetricTypeNameCount,
-					metrics.MetricTag{Key: "path", Val: r.URL.Path},
-					metrics.MetricTag{Key: "user", Val: authInfo.SubjectName()})
-				return
-			}
-		}
-
-		if authInfo != nil {
-			klog.V(4).Infof("user %v request %+v is valid", authInfo.SubjectName(), r.URL)
-		}
 		f(w, r)
 	}
 }
@@ -199,12 +155,6 @@ func (h *HTTPHandler) withRateLimiter(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r != nil {
 			rateLimiterKey := r.RemoteAddr
-			authInfo, err := getAuthInfo(r)
-			if err != nil {
-				klog.Warningf("request %+v has no valid auth info bound to it, using Remote address %v as RateLimiter key, err: %v", r.URL, r.RemoteAddr, err)
-			} else {
-				rateLimiterKey = authInfo.SubjectName()
-			}
 
 			limiter := h.getHTTPVisitor(rateLimiterKey)
 			if !limiter.Allow() {
@@ -227,31 +177,10 @@ func (h *HTTPHandler) withMonitor(f http.HandlerFunc) http.HandlerFunc {
 		f(w, r)
 
 		user := UserUnknown
-		if authInfo, err := getAuthInfo(r); err == nil {
-			user = authInfo.SubjectName()
-		}
 		_ = h.emitter.StoreInt64(HTTPRequestCount, 1, metrics.MetricTypeNameCount,
 			metrics.MetricTag{Key: "path", Val: r.URL.Path},
 			metrics.MetricTag{Key: "user", Val: user})
 	}
-}
-
-func (h *HTTPHandler) WithCredential(cred credential.Credential) error {
-	if cred == nil {
-		return fmt.Errorf("nil Credential is not allowed")
-	}
-
-	h.cred = cred
-	return nil
-}
-
-func (h *HTTPHandler) WithAuthorization(auth authorization.AccessControl) error {
-	if auth == nil {
-		return fmt.Errorf("nil AccessControl is not allowed")
-	}
-
-	h.accessCtl = auth
-	return nil
 }
 
 // WithHandleChain builds handler chains for http.Handler
@@ -320,26 +249,4 @@ func GetAndUnmarshal(url string, v interface{}) error {
 	}
 
 	return nil
-}
-
-func attachAuthInfo(r *http.Request, authInfo credential.AuthInfo) *http.Request {
-	if authInfo == nil {
-		return r
-	}
-	newCtx := context.WithValue(r.Context(), KeyAuthInfo, &authInfo)
-	return r.WithContext(newCtx)
-}
-
-func getAuthInfo(r *http.Request) (credential.AuthInfo, error) {
-	value := r.Context().Value(KeyAuthInfo)
-	if value == nil {
-		return nil, fmt.Errorf("no auth info bound to this request")
-	}
-
-	authInfo, ok := value.(*credential.AuthInfo)
-	if !ok {
-		return nil, fmt.Errorf("invalid auth info bound to this request")
-	}
-
-	return *authInfo, nil
 }

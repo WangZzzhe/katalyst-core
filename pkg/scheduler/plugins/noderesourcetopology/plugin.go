@@ -18,6 +18,7 @@ package noderesourcetopology
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"strconv"
 
 	v1 "k8s.io/api/core/v1"
@@ -25,9 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	quotav1 "k8s.io/apiserver/pkg/quota/v1"
-	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
-	"k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 
 	"github.com/kubewharf/katalyst-api/pkg/apis/node/v1alpha1"
@@ -64,7 +63,7 @@ type NUMANodeList []NUMANode
 
 type TopologyMatch struct {
 	scoreStrategyFunc   scoreStrategyFn
-	scoreStrategyType   config.ScoringStrategyType
+	scoreStrategyType   apisconfig.ScoringStrategyType
 	resourceToWeightMap resourceToWeightMap
 	alignedResources    sets.String
 	resourcePolicy      consts.ResourcePluginPolicyName
@@ -72,10 +71,9 @@ type TopologyMatch struct {
 }
 
 var (
-	_ framework.FilterPlugin      = &TopologyMatch{}
-	_ framework.ScorePlugin       = &TopologyMatch{}
-	_ framework.ReservePlugin     = &TopologyMatch{}
-	_ framework.EnqueueExtensions = &TopologyMatch{}
+	_ framework.FilterPlugin  = &TopologyMatch{}
+	_ framework.ScorePlugin   = &TopologyMatch{}
+	_ framework.ReservePlugin = &TopologyMatch{}
 )
 
 // Name returns name of the plugin.
@@ -118,22 +116,6 @@ func New(args runtime.Object, h framework.Handle) (framework.Plugin, error) {
 		resourcePolicy:      tcfg.ResourcePluginPolicy,
 		sharedLister:        h.SnapshotSharedLister(),
 	}, nil
-}
-
-// EventsToRegister returns the possible events that may make a Pod
-// failed by this plugin schedulable.
-// NOTE: if in-place-update (KEP 1287) gets implemented, then PodUpdate event
-// should be registered for this plugin since a Pod update may free up resources
-// that make other Pods schedulable.
-func (tm *TopologyMatch) EventsToRegister() []framework.ClusterEvent {
-	// To register a custom event, follow the naming convention at:
-	// https://git.k8s.io/kubernetes/pkg/scheduler/eventhandlers.go#L403-L410
-	cnrGVK := fmt.Sprintf("customnoderesources.v1alpha1.%v", v1alpha1.GroupName)
-	return []framework.ClusterEvent{
-		{Resource: framework.Pod, ActionType: framework.Delete},
-		{Resource: framework.Node, ActionType: framework.Add | framework.UpdateNodeAllocatable},
-		{Resource: framework.GVK(cnrGVK), ActionType: framework.Add | framework.Update},
-	}
 }
 
 func (tm *TopologyMatch) topologyMatchSupport(pod *v1.Pod) bool {
@@ -181,15 +163,15 @@ func (tm *TopologyMatch) dedicatedPodsFilter(nodeInfo *framework.NodeInfo) func(
 	}
 }
 
-func getScoringStrategyFunction(strategy config.ScoringStrategyType) (scoreStrategyFn, error) {
+func getScoringStrategyFunction(strategy apisconfig.ScoringStrategyType) (scoreStrategyFn, error) {
 	switch strategy {
-	case config.MostAllocated:
+	case apisconfig.MostAllocated:
 		return mostAllocatedScoreStrategy, nil
-	case config.LeastAllocated:
+	case apisconfig.LeastAllocated:
 		return leastAllocatedScoreStrategy, nil
-	case consts.BalancedAllocation:
+	case apisconfig.BalancedAllocation:
 		return balancedAllocationScoreStrategy, nil
-	case consts.LeastNUMANodes:
+	case apisconfig.LeastNUMANodes:
 		return nil, fmt.Errorf("LeastNUMANodes not support yet")
 	default:
 		return nil, fmt.Errorf("illegal scoring strategy found")

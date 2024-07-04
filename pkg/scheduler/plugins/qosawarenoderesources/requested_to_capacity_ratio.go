@@ -21,22 +21,29 @@ import (
 
 	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
 )
 
 const (
 	maxUtilization = 100
 )
 
+type functionShape []functionShapePoint
+
+type functionShapePoint struct {
+	// Utilization is function argument.
+	utilization int64
+	// Score is function value.
+	score int64
+}
+
 // buildRequestedToCapacityRatioScorerFunction allows users to apply bin packing
 // on core resources like CPU, Memory as well as extended resources like accelerators.
-func buildRequestedToCapacityRatioScorerFunction(scoringFunctionShape helper.FunctionShape, resourceToWeightMap resourceToWeightMap) func(resourceToValueMap, resourceToValueMap) int64 {
-	rawScoringFunction := helper.BuildBrokenLinearFunction(scoringFunctionShape)
+func buildRequestedToCapacityRatioScorerFunction(scoringFunctionShape functionShape, resourceToWeightMap resourceToWeightMap) func(resourceToValueMap, resourceToValueMap) int64 {
+	rawScoringFunction := buildBrokenLinearFunction(scoringFunctionShape)
 	resourceScoringFunction := func(requested, capacity int64) int64 {
 		if capacity == 0 || requested > capacity {
 			return rawScoringFunction(maxUtilization)
 		}
-
 		return rawScoringFunction(requested * maxUtilization / capacity)
 	}
 	return func(requested, allocatable resourceToValueMap) int64 {
@@ -57,16 +64,41 @@ func buildRequestedToCapacityRatioScorerFunction(scoringFunctionShape helper.Fun
 }
 
 func requestedToCapacityRatioScorer(weightMap resourceToWeightMap, shape []kubeschedulerconfig.UtilizationShapePoint) func(resourceToValueMap, resourceToValueMap) int64 {
-	shapes := make([]helper.FunctionShapePoint, 0, len(shape))
+	shapes := make([]functionShapePoint, 0, len(shape))
 	for _, point := range shape {
-		shapes = append(shapes, helper.FunctionShapePoint{
-			Utilization: int64(point.Utilization),
+		shapes = append(shapes, functionShapePoint{
+			utilization: int64(point.Utilization),
 			// MaxCustomPriorityScore may diverge from the max score used in the scheduler and defined by MaxNodeScore,
 			// therefore we need to scale the score returned by requested to capacity ratio to the score range
 			// used by the scheduler.
-			Score: int64(point.Score) * (framework.MaxNodeScore / kubeschedulerconfig.MaxCustomPriorityScore),
+			score: int64(point.Score) * (framework.MaxNodeScore / kubeschedulerconfig.MaxCustomPriorityScore),
 		})
 	}
 
 	return buildRequestedToCapacityRatioScorerFunction(shapes, weightMap)
+}
+
+// Creates a function which is built using linear segments. Segments are defined via shape array.
+// Shape[i].utilization slice represents points on "utilization" axis where different segments meet.
+// Shape[i].score represents function values at meeting points.
+//
+// function f(p) is defined as:
+//
+//	shape[0].score for p < f[0].utilization
+//	shape[i].score for p == shape[i].utilization
+//	shape[n-1].score for p > shape[n-1].utilization
+//
+// and linear between points (p < shape[i].utilization)
+func buildBrokenLinearFunction(shape functionShape) func(int64) int64 {
+	return func(p int64) int64 {
+		for i := 0; i < len(shape); i++ {
+			if p <= int64(shape[i].utilization) {
+				if i == 0 {
+					return shape[0].score
+				}
+				return shape[i-1].score + (shape[i].score-shape[i-1].score)*(p-shape[i-1].utilization)/(shape[i].utilization-shape[i-1].utilization)
+			}
+		}
+		return shape[len(shape)-1].score
+	}
 }

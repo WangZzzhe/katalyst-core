@@ -23,9 +23,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/feature"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
 
 	"github.com/kubewharf/katalyst-api/pkg/apis/scheduling/config"
@@ -114,11 +112,8 @@ func NewBalancedAllocation(baArgs runtime.Object, h framework.Handle) (framework
 }
 
 func newNativeBalancedAllocation(args *config.QoSAwareNodeResourcesBalancedAllocationArgs, h framework.Handle) (*noderesources.BalancedAllocation, error) {
-	nativeBalancedAllocationPlugin, err := noderesources.NewBalancedAllocation(
-		&kubeschedulerconfig.NodeResourcesBalancedAllocationArgs{
-			Resources: args.Resources,
-		}, h, feature.Features{},
-	)
+	// native balanced allocation use default request ratio before v1.22
+	nativeBalancedAllocationPlugin, err := noderesources.NewBalancedAllocation(nil, h)
 	if err != nil {
 		return nil, err
 	}

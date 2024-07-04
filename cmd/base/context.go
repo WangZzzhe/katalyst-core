@@ -18,10 +18,12 @@ package katalyst_base
 
 import (
 	"context"
+	"k8s.io/klog/v2"
 	"net/http"
 	"net/http/pprof"
 	"time"
 
+	"github.com/kubernetes-sigs/custom-metrics-apiserver/pkg/dynamicmapper"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -29,19 +31,14 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/metadata/metadatainformer"
 	"k8s.io/client-go/tools/events"
-	"k8s.io/klog/v2"
 	aggregator "k8s.io/kube-aggregator/pkg/client/informers/externalversions"
-	"sigs.k8s.io/custom-metrics-apiserver/pkg/dynamicmapper"
 
 	"github.com/kubewharf/katalyst-api/pkg/client/informers/externalversions"
 	"github.com/kubewharf/katalyst-core/pkg/client"
-	"github.com/kubewharf/katalyst-core/pkg/config/agent/dynamic"
 	"github.com/kubewharf/katalyst-core/pkg/config/generic"
 	"github.com/kubewharf/katalyst-core/pkg/consts"
 	"github.com/kubewharf/katalyst-core/pkg/metrics"
 	metricspool "github.com/kubewharf/katalyst-core/pkg/metrics/metrics-pool"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential"
-	"github.com/kubewharf/katalyst-core/pkg/util/credential/authorization"
 	"github.com/kubewharf/katalyst-core/pkg/util/general"
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
 	"github.com/kubewharf/katalyst-core/pkg/util/process"
@@ -94,7 +91,6 @@ func NewGenericContext(
 	disabledByDefault sets.String,
 	genericConf *generic.GenericConfiguration,
 	component consts.KatalystComponent,
-	dynamicConfiguration *dynamic.DynamicAgentConfiguration,
 ) (*GenericContext, error) {
 	var (
 		err                       error
@@ -161,28 +157,6 @@ func NewGenericContext(
 	httpHandler := process.NewHTTPHandler(genericConf.GenericEndpointHandleChains, []string{healthZPath, debugPrefix},
 		genericConf.HttpStrictAuthentication, customMetricsEmitterPool.GetDefaultMetricsEmitter())
 
-	// since some authentication implementation needs kcc and kcc only support agent component, so we only enable
-	// authentication for agent component for now.
-	if component == consts.KatalystComponentAgent {
-		cred, credErr := credential.GetCredential(genericConf, dynamicConfiguration)
-		if credErr != nil {
-			return nil, credErr
-		}
-		err = httpHandler.WithCredential(cred)
-		if err != nil {
-			return nil, err
-		}
-
-		accessControl, acErr := authorization.GetAccessControl(genericConf, dynamicConfiguration)
-		if acErr != nil {
-			return nil, acErr
-		}
-		err = httpHandler.WithAuthorization(accessControl)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	c := &GenericContext{
 		httpHandler: httpHandler,
 		Server: &http.Server{
@@ -240,9 +214,6 @@ func (c *GenericContext) StartInformer(ctx context.Context) {
 	}
 
 	if c.KubeInformerFactory != nil {
-		if transformers, ok := native.GetPodTransformer(); ok && c.transformedInformerForPod {
-			_ = c.KubeInformerFactory.Core().V1().Pods().Informer().SetTransform(transformers)
-		}
 		c.KubeInformerFactory.Start(ctx.Done())
 	}
 

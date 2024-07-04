@@ -1,16 +1,15 @@
 package loadaware
 
 import (
-	"time"
-
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/informers"
-	toolcache "k8s.io/client-go/tools/cache"
+	"github.com/kubewharf/katalyst-core/pkg/util/native"
 	"k8s.io/klog/v2"
-	v1pod "k8s.io/kubernetes/pkg/api/v1/pod"
+	"time"
 
 	"github.com/kubewharf/katalyst-api/pkg/client/informers/externalversions"
 	"github.com/kubewharf/katalyst-core/pkg/scheduler/eventhandlers"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/informers"
+	toolcache "k8s.io/client-go/tools/cache"
 )
 
 const (
@@ -54,7 +53,7 @@ func OnAdd(obj interface{}) {
 		return
 	}
 	nodeName := pod.Spec.NodeName
-	if nodeName == "" || v1pod.IsPodTerminal(pod) {
+	if nodeName == "" || native.PodIsTerminated(pod) {
 		return
 	}
 	startTime := time.Now()
@@ -70,7 +69,7 @@ func OnUpdate(oldObj, newObj interface{}) {
 	if !ok {
 		return
 	}
-	if v1pod.IsPodTerminal(pod) {
+	if native.PodIsTerminated(pod) {
 		cache.removePod(pod.Spec.NodeName, pod)
 	} else {
 		//pod delete and pod may merge a update event

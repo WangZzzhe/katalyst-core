@@ -18,11 +18,11 @@ package cache
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
 	clientCache "k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
@@ -203,7 +203,7 @@ func (n *NodeCache) updateTopologyProvider(cnr *v1alpha1.CustomNodeResource) {
 
 	if memoryManagerPolicy, ok := cnr.Annotations[consts.KCNRAnnotationMemoryManager]; ok {
 		if memoryManagerPolicy == "Static" {
-			n.HintProviders[string(features.MemoryManager)] = struct{}{}
+			n.HintProviders["MemoryManager"] = struct{}{}
 		}
 	}
 }
@@ -217,7 +217,7 @@ func (n *NodeCache) HintProvidersAvailable() (CPUManager, MemoryManager bool) {
 		CPUManager = true
 	}
 
-	_, ok = n.HintProviders[string(features.MemoryManager)]
+	_, ok = n.HintProviders["MemoryManager"]
 	if ok {
 		MemoryManager = true
 	}
