@@ -50,7 +50,7 @@ func generateTestDeletionTimestamp() *v1.Time {
 	return &now
 }
 
-func TestKatalystCustomConfigController_Run(t *testing.T) {
+func TestHaloCustomConfigController_Run(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
@@ -66,12 +66,12 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 			name: "kcc target not found",
 			args: args{
 				kccList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "test-kcc",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -88,12 +88,12 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 			name: "kcc and kcc target are all valid",
 			args: args{
 				kccList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "test-kcc",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -133,12 +133,12 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 			name: "more than one kcc with same gvr",
 			args: args{
 				kccList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "test-kcc",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -148,12 +148,12 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 							},
 						},
 					},
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "test-kcc-1",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -193,16 +193,16 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 			name: "handle finalizer terminating",
 			args: args{
 				kccList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:              "test-kcc",
 							Namespace:         "default",
 							DeletionTimestamp: generateTestDeletionTimestamp(),
 							Finalizers: []string{
-								consts.KatalystCustomConfigFinalizerKCC,
+								consts.HaloCustomConfigFinalizerKCC,
 							},
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -212,12 +212,12 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 							},
 						},
 					},
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "test-kcc-1",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -257,16 +257,16 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 			name: "handle finalizer normal",
 			args: args{
 				kccList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:              "test-kcc",
 							Namespace:         "default",
 							DeletionTimestamp: generateTestDeletionTimestamp(),
 							Finalizers: []string{
-								consts.KatalystCustomConfigFinalizerKCC,
+								consts.HaloCustomConfigFinalizerKCC,
 							},
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -276,12 +276,12 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 							},
 						},
 					},
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "test-kcc-1",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -306,20 +306,20 @@ func TestKatalystCustomConfigController_Run(t *testing.T) {
 			conf := generateTestConfiguration(t)
 
 			ctx := context.Background()
-			targetHandler := kcctarget.NewKatalystCustomConfigTargetHandler(
+			targetHandler := kcctarget.NewHaloCustomConfigTargetHandler(
 				ctx,
 				genericContext.Client,
 				conf.ControllersConfiguration.KCCConfig,
-				genericContext.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+				genericContext.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 			)
 
-			kcc, err := NewKatalystCustomConfigController(
+			kcc, err := NewHaloCustomConfigController(
 				ctx,
 				conf.GenericConfiguration,
 				conf.GenericControllerConfiguration,
 				conf.KCCConfig,
 				genericContext.Client,
-				genericContext.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+				genericContext.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 				metrics.DummyMetrics{},
 				targetHandler,
 			)
@@ -339,7 +339,7 @@ func Test_checkNodeLabelSelectorAllowedKeyList(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		kcc *v1alpha1.KatalystCustomConfig
+		kcc *v1alpha1.HaloCustomConfig
 	}
 	tests := []struct {
 		name  string
@@ -350,8 +350,8 @@ func Test_checkNodeLabelSelectorAllowedKeyList(t *testing.T) {
 		{
 			name: "test-1",
 			args: args{
-				kcc: &v1alpha1.KatalystCustomConfig{
-					Spec: v1alpha1.KatalystCustomConfigSpec{
+				kcc: &v1alpha1.HaloCustomConfig{
+					Spec: v1alpha1.HaloCustomConfigSpec{
 						NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 							{
 								Priority: 0,
@@ -371,8 +371,8 @@ func Test_checkNodeLabelSelectorAllowedKeyList(t *testing.T) {
 		{
 			name: "test-2",
 			args: args{
-				kcc: &v1alpha1.KatalystCustomConfig{
-					Spec: v1alpha1.KatalystCustomConfigSpec{
+				kcc: &v1alpha1.HaloCustomConfig{
+					Spec: v1alpha1.HaloCustomConfigSpec{
 						NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 							{
 								Priority: 0,

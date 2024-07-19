@@ -68,7 +68,7 @@ const (
 	kccConditionTypeValidReasonTerminating                = "Terminating"
 )
 
-type KatalystCustomConfigController struct {
+type HaloCustomConfigController struct {
 	ctx       context.Context
 	dryRun    bool
 	kccConfig *controller.KCCConfig
@@ -77,47 +77,47 @@ type KatalystCustomConfigController struct {
 	kccControl          control.KCCControl
 	unstructuredControl control.UnstructuredControl
 
-	// katalystCustomConfigLister can list/get KatalystCustomConfig from the shared informer's store
-	katalystCustomConfigLister v1alpha1.KatalystCustomConfigLister
-	// katalystCustomConfigSyncQueue queue for KatalystCustomConfig
-	katalystCustomConfigSyncQueue workqueue.RateLimitingInterface
+	// haloCustomConfigLister can list/get HaloCustomConfig from the shared informer's store
+	haloCustomConfigLister v1alpha1.HaloCustomConfigLister
+	// haloCustomConfigSyncQueue queue for HaloCustomConfig
+	haloCustomConfigSyncQueue workqueue.RateLimitingInterface
 
 	syncedFunc []cache.InformerSynced
 
 	// targetHandler store gvr kcc and gvr
-	targetHandler *kcctarget.KatalystCustomConfigTargetHandler
+	targetHandler *kcctarget.HaloCustomConfigTargetHandler
 
 	// metricsEmitter for emit metrics
 	metricsEmitter metrics.MetricEmitter
 }
 
-func NewKatalystCustomConfigController(
+func NewHaloCustomConfigController(
 	ctx context.Context,
 	genericConf *generic.GenericConfiguration,
 	_ *controller.GenericControllerConfiguration,
 	kccConfig *controller.KCCConfig,
 	client *kcclient.GenericClientSet,
-	katalystCustomConfigInformer configinformers.KatalystCustomConfigInformer,
+	haloCustomConfigInformer configinformers.HaloCustomConfigInformer,
 	metricsEmitter metrics.MetricEmitter,
-	targetHandler *kcctarget.KatalystCustomConfigTargetHandler,
-) (*KatalystCustomConfigController, error) {
-	k := &KatalystCustomConfigController{
-		ctx:                           ctx,
-		client:                        client,
-		dryRun:                        genericConf.DryRun,
-		kccConfig:                     kccConfig,
-		katalystCustomConfigLister:    katalystCustomConfigInformer.Lister(),
-		targetHandler:                 targetHandler,
-		katalystCustomConfigSyncQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), kccControllerName),
+	targetHandler *kcctarget.HaloCustomConfigTargetHandler,
+) (*HaloCustomConfigController, error) {
+	k := &HaloCustomConfigController{
+		ctx:                       ctx,
+		client:                    client,
+		dryRun:                    genericConf.DryRun,
+		kccConfig:                 kccConfig,
+		haloCustomConfigLister:    haloCustomConfigInformer.Lister(),
+		targetHandler:             targetHandler,
+		haloCustomConfigSyncQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), kccControllerName),
 		syncedFunc: []cache.InformerSynced{
-			katalystCustomConfigInformer.Informer().HasSynced,
+			haloCustomConfigInformer.Informer().HasSynced,
 			targetHandler.HasSynced,
 		},
 	}
 
-	katalystCustomConfigInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    k.addKatalystCustomConfigEventHandle,
-		UpdateFunc: k.updateKatalystCustomConfigEventHandle,
+	haloCustomConfigInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    k.addHaloCustomConfigEventHandle,
+		UpdateFunc: k.updateHaloCustomConfigEventHandle,
 	})
 
 	if metricsEmitter == nil {
@@ -134,13 +134,13 @@ func NewKatalystCustomConfigController(
 	}
 
 	// register kcc-target informer handler
-	targetHandler.RegisterTargetHandler(kccControllerName, k.katalystCustomConfigTargetHandler)
+	targetHandler.RegisterTargetHandler(kccControllerName, k.haloCustomConfigTargetHandler)
 	return k, nil
 }
 
-func (k *KatalystCustomConfigController) Run() {
+func (k *HaloCustomConfigController) Run() {
 	defer utilruntime.HandleCrash()
-	defer k.katalystCustomConfigSyncQueue.ShutDown()
+	defer k.haloCustomConfigSyncQueue.ShutDown()
 
 	defer klog.Infof("shutting down %s controller", kccControllerName)
 
@@ -158,29 +158,29 @@ func (k *KatalystCustomConfigController) Run() {
 	<-k.ctx.Done()
 }
 
-func (k *KatalystCustomConfigController) addKatalystCustomConfigEventHandle(obj interface{}) {
-	t, ok := obj.(*configapis.KatalystCustomConfig)
+func (k *HaloCustomConfigController) addHaloCustomConfigEventHandle(obj interface{}) {
+	t, ok := obj.(*configapis.HaloCustomConfig)
 	if !ok {
-		klog.Errorf("[kcc] cannot convert obj to *KatalystCustomConfig: %v", obj)
+		klog.Errorf("[kcc] cannot convert obj to *HaloCustomConfig: %v", obj)
 		return
 	}
 
-	klog.V(4).Infof("[kcc] notice addition of KatalystCustomConfig %s", native.GenerateUniqObjectNameKey(t))
-	k.enqueueKatalystCustomConfig(t)
+	klog.V(4).Infof("[kcc] notice addition of HaloCustomConfig %s", native.GenerateUniqObjectNameKey(t))
+	k.enqueueHaloCustomConfig(t)
 }
 
-func (k *KatalystCustomConfigController) updateKatalystCustomConfigEventHandle(_, new interface{}) {
-	t, ok := new.(*configapis.KatalystCustomConfig)
+func (k *HaloCustomConfigController) updateHaloCustomConfigEventHandle(_, new interface{}) {
+	t, ok := new.(*configapis.HaloCustomConfig)
 	if !ok {
-		klog.Errorf("[kcc] cannot convert obj to *KatalystCustomConfig: %v", new)
+		klog.Errorf("[kcc] cannot convert obj to *HaloCustomConfig: %v", new)
 		return
 	}
 
-	klog.V(4).Infof("[kcc] notice update of KatalystCustomConfig %s", native.GenerateUniqObjectNameKey(t))
-	k.enqueueKatalystCustomConfig(t)
+	klog.V(4).Infof("[kcc] notice update of HaloCustomConfig %s", native.GenerateUniqObjectNameKey(t))
+	k.enqueueHaloCustomConfig(t)
 }
 
-func (k *KatalystCustomConfigController) enqueueKatalystCustomConfig(kcc *configapis.KatalystCustomConfig) {
+func (k *HaloCustomConfigController) enqueueHaloCustomConfig(kcc *configapis.HaloCustomConfig) {
 	if kcc == nil {
 		klog.Warning("[kcc] trying to enqueue a nil kcc")
 		return
@@ -192,7 +192,7 @@ func (k *KatalystCustomConfigController) enqueueKatalystCustomConfig(kcc *config
 		return
 	}
 
-	k.katalystCustomConfigSyncQueue.Add(key)
+	k.haloCustomConfigSyncQueue.Add(key)
 
 	// if this kcc has same gvr with others, we also enqueue them to reconcile
 	if kccKeys := k.targetHandler.GetKCCKeyListByGVR(kcc.Spec.TargetType); len(kccKeys) > 1 {
@@ -201,36 +201,36 @@ func (k *KatalystCustomConfigController) enqueueKatalystCustomConfig(kcc *config
 			if key == otherKey {
 				continue
 			}
-			k.katalystCustomConfigSyncQueue.Add(otherKey)
+			k.haloCustomConfigSyncQueue.Add(otherKey)
 		}
 	}
 }
 
-func (k *KatalystCustomConfigController) worker() {
-	for k.processNextKatalystCustomConfigWorkItem() {
+func (k *HaloCustomConfigController) worker() {
+	for k.processNextHaloCustomConfigWorkItem() {
 	}
 }
 
-func (k *KatalystCustomConfigController) processNextKatalystCustomConfigWorkItem() bool {
-	key, quit := k.katalystCustomConfigSyncQueue.Get()
+func (k *HaloCustomConfigController) processNextHaloCustomConfigWorkItem() bool {
+	key, quit := k.haloCustomConfigSyncQueue.Get()
 	if quit {
 		return false
 	}
-	defer k.katalystCustomConfigSyncQueue.Done(key)
+	defer k.haloCustomConfigSyncQueue.Done(key)
 
-	err := k.syncKatalystCustomConfig(key.(string))
+	err := k.syncHaloCustomConfig(key.(string))
 	if err == nil {
-		k.katalystCustomConfigSyncQueue.Forget(key)
+		k.haloCustomConfigSyncQueue.Forget(key)
 		return true
 	}
 
 	utilruntime.HandleError(fmt.Errorf("sync kcc %q failed with %v", key, err))
-	k.katalystCustomConfigSyncQueue.AddRateLimited(key)
+	k.haloCustomConfigSyncQueue.AddRateLimited(key)
 
 	return true
 }
 
-func (k *KatalystCustomConfigController) syncKatalystCustomConfig(key string) error {
+func (k *HaloCustomConfigController) syncHaloCustomConfig(key string) error {
 	klog.V(4).Infof("[kcc] processing kcc %s", key)
 	kcc, err := k.getKCCByKey(key)
 	if apierrors.IsNotFound(err) {
@@ -261,7 +261,7 @@ func (k *KatalystCustomConfigController) syncKatalystCustomConfig(key string) er
 	if len(kccKeys) == 0 {
 		if !k.kccConfig.ValidAPIGroupSet.Has(kcc.Spec.TargetType.Group) {
 			// kcc with not allowed target type, of which api group is not allowed
-			return k.updateKCCStatusCondition(kcc, configapis.KatalystCustomConfigConditionTypeValid, v1.ConditionFalse,
+			return k.updateKCCStatusCondition(kcc, configapis.HaloCustomConfigConditionTypeValid, v1.ConditionFalse,
 				kccConditionTypeValidReasonTargetTypeNotAllowed, fmt.Sprintf("api group %s of target type %s is not in valid api group set %v",
 					kcc.Spec.TargetType.Group, kcc.Spec.TargetType, k.kccConfig.ValidAPIGroupSet))
 		}
@@ -269,9 +269,9 @@ func (k *KatalystCustomConfigController) syncKatalystCustomConfig(key string) er
 		// kcc target type is not exist, we will re-enqueue after 30s as
 		// crd of the gvr may not have been created yet. Because we not list/watch crd add/update event, we
 		// reconcile it periodically to check it whether the gvr is created
-		k.katalystCustomConfigSyncQueue.AddAfter(key, 30*time.Second)
+		k.haloCustomConfigSyncQueue.AddAfter(key, 30*time.Second)
 
-		return k.updateKCCStatusCondition(kcc, configapis.KatalystCustomConfigConditionTypeValid, v1.ConditionFalse,
+		return k.updateKCCStatusCondition(kcc, configapis.HaloCustomConfigConditionTypeValid, v1.ConditionFalse,
 			kccConditionTypeValidReasonTargetTypeNotExist, fmt.Sprintf("crd of target type %s is not created", kcc.Spec.TargetType))
 	} else if len(kccKeys) > 1 {
 		// kcc with overlap target type
@@ -294,7 +294,7 @@ func (k *KatalystCustomConfigController) syncKatalystCustomConfig(key string) er
 
 		if len(aliveKeys) > 0 {
 			klog.Errorf("[kcc] kcc %s is overlap with other key: %s", native.GenerateUniqObjectNameKey(kcc), aliveKeys)
-			return k.updateKCCStatusCondition(kcc, configapis.KatalystCustomConfigConditionTypeValid, v1.ConditionFalse,
+			return k.updateKCCStatusCondition(kcc, configapis.HaloCustomConfigConditionTypeValid, v1.ConditionFalse,
 				kccConditionTypeValidReasonTargetTypeOverlap, fmt.Sprintf("it is overlap with other kcc %v", aliveKeys))
 		}
 	}
@@ -302,7 +302,7 @@ func (k *KatalystCustomConfigController) syncKatalystCustomConfig(key string) er
 	// check whether kcc node selector allowed key list is valid
 	msg, ok := checkNodeLabelSelectorAllowedKeyList(kcc)
 	if !ok {
-		return k.updateKCCStatusCondition(kcc, configapis.KatalystCustomConfigConditionTypeValid, v1.ConditionFalse,
+		return k.updateKCCStatusCondition(kcc, configapis.HaloCustomConfigConditionTypeValid, v1.ConditionFalse,
 			kccConditionTypeValidReasonPrioritySelectorKeyInvalid, msg)
 	}
 
@@ -329,7 +329,7 @@ func (k *KatalystCustomConfigController) syncKatalystCustomConfig(key string) er
 	oldKCC := kcc.DeepCopy()
 	kcc.Status.InvalidTargetConfigList = invalidConfigList
 	kcc.Status.ObservedGeneration = kcc.Generation
-	setKatalystCustomConfigConditions(kcc, configapis.KatalystCustomConfigConditionTypeValid, v1.ConditionTrue,
+	setHaloCustomConfigConditions(kcc, configapis.HaloCustomConfigConditionTypeValid, v1.ConditionTrue,
 		kccConditionTypeValidReasonNormal, "")
 	if !apiequality.Semantic.DeepEqual(oldKCC.Status, kcc.Status) {
 		_, err = k.kccControl.UpdateKCCStatus(k.ctx, kcc, metav1.UpdateOptions{})
@@ -341,21 +341,21 @@ func (k *KatalystCustomConfigController) syncKatalystCustomConfig(key string) er
 	return nil
 }
 
-func (k *KatalystCustomConfigController) getKCCByKey(key string) (*configapis.KatalystCustomConfig, error) {
+func (k *HaloCustomConfigController) getKCCByKey(key string) (*configapis.HaloCustomConfig, error) {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		klog.Errorf("[kcc] failed to split namespace and name from key %s", key)
 		return nil, err
 	}
 
-	return k.client.InternalClient.ConfigV1alpha1().KatalystCustomConfigs(namespace).Get(k.ctx, name, metav1.GetOptions{
+	return k.client.InternalClient.ConfigV1alpha1().HaloCustomConfigs(namespace).Get(k.ctx, name, metav1.GetOptions{
 		ResourceVersion: "0",
 	})
 }
 
-// katalystCustomConfigTargetHandler process object of kcc target type from targetAccessor, and
-// KatalystCustomConfigTargetAccessor will call this handler when some update event on target is added.
-func (k *KatalystCustomConfigController) katalystCustomConfigTargetHandler(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error {
+// haloCustomConfigTargetHandler process object of kcc target type from targetAccessor, and
+// HaloCustomConfigTargetAccessor will call this handler when some update event on target is added.
+func (k *HaloCustomConfigController) haloCustomConfigTargetHandler(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error {
 	for _, syncFunc := range k.syncedFunc {
 		if !syncFunc() {
 			return fmt.Errorf("[kcc] informer has not synced")
@@ -372,7 +372,7 @@ func (k *KatalystCustomConfigController) katalystCustomConfigTargetHandler(gvr m
 	}
 
 	target, err := kccutil.EnsureKCCTargetFinalizer(k.ctx, k.unstructuredControl,
-		consts.KatalystCustomConfigTargetFinalizerKCC, gvr, target)
+		consts.HaloCustomConfigTargetFinalizerKCC, gvr, target)
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func (k *KatalystCustomConfigController) katalystCustomConfigTargetHandler(gvr m
 	if util.ToKCCTargetResource(target).IsUpdated() {
 		kccKeys := k.targetHandler.GetKCCKeyListByGVR(gvr)
 		for _, key := range kccKeys {
-			k.katalystCustomConfigSyncQueue.Add(key)
+			k.haloCustomConfigSyncQueue.Add(key)
 		}
 		return nil
 	}
@@ -390,18 +390,18 @@ func (k *KatalystCustomConfigController) katalystCustomConfigTargetHandler(gvr m
 }
 
 // handleKCCTargetFinalizer enqueue all related kcc to reconcile when a kcc target was deleted
-func (k *KatalystCustomConfigController) handleKCCTargetFinalizer(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error {
-	if !controllerutil.ContainsFinalizer(target, consts.KatalystCustomConfigTargetFinalizerKCC) {
+func (k *HaloCustomConfigController) handleKCCTargetFinalizer(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error {
+	if !controllerutil.ContainsFinalizer(target, consts.HaloCustomConfigTargetFinalizerKCC) {
 		return nil
 	}
 
 	klog.Infof("[kcc] handling gvr: %s kcc target %s finalizer", gvr.String(), native.GenerateUniqObjectNameKey(target))
 	kccKeys := k.targetHandler.GetKCCKeyListByGVR(gvr)
 	for _, key := range kccKeys {
-		k.katalystCustomConfigSyncQueue.Add(key)
+		k.haloCustomConfigSyncQueue.Add(key)
 	}
 
-	err := kccutil.RemoveKCCTargetFinalizer(k.ctx, k.unstructuredControl, consts.KatalystCustomConfigTargetFinalizerKCC, gvr, target)
+	err := kccutil.RemoveKCCTargetFinalizer(k.ctx, k.unstructuredControl, consts.HaloCustomConfigTargetFinalizerKCC, gvr, target)
 	if err != nil {
 		return err
 	}
@@ -410,7 +410,7 @@ func (k *KatalystCustomConfigController) handleKCCTargetFinalizer(gvr metav1.Gro
 	return nil
 }
 
-func (k *KatalystCustomConfigController) collectInvalidConfigs(list []*unstructured.Unstructured) ([]string, error) {
+func (k *HaloCustomConfigController) collectInvalidConfigs(list []*unstructured.Unstructured) ([]string, error) {
 	invalidConfigs := sets.String{}
 	for _, o := range list {
 		if !util.ToKCCTargetResource(o).CheckValid() {
@@ -421,10 +421,10 @@ func (k *KatalystCustomConfigController) collectInvalidConfigs(list []*unstructu
 	return invalidConfigs.List(), nil
 }
 
-func (k *KatalystCustomConfigController) updateKCCStatusCondition(kcc *configapis.KatalystCustomConfig,
-	conditionType configapis.KatalystCustomConfigConditionType, status v1.ConditionStatus, reason, message string,
+func (k *HaloCustomConfigController) updateKCCStatusCondition(kcc *configapis.HaloCustomConfig,
+	conditionType configapis.HaloCustomConfigConditionType, status v1.ConditionStatus, reason, message string,
 ) error {
-	updated := setKatalystCustomConfigConditions(kcc, conditionType, status, reason, message)
+	updated := setHaloCustomConfigConditions(kcc, conditionType, status, reason, message)
 	if updated || kcc.Status.ObservedGeneration != kcc.Generation {
 		kcc.Status.ObservedGeneration = kcc.Generation
 		_, err := k.kccControl.UpdateKCCStatus(k.ctx, kcc, metav1.UpdateOptions{})
@@ -438,8 +438,8 @@ func (k *KatalystCustomConfigController) updateKCCStatusCondition(kcc *configapi
 
 // handleKCCFinalizer checks if there still exist CRs for the given kcc
 // if true, protect kcc CR from deleting before its configuration CRs been deleted.
-func (k *KatalystCustomConfigController) handleKCCFinalizer(kcc *configapis.KatalystCustomConfig) error {
-	if !controllerutil.ContainsFinalizer(kcc, consts.KatalystCustomConfigFinalizerKCC) {
+func (k *HaloCustomConfigController) handleKCCFinalizer(kcc *configapis.HaloCustomConfig) error {
+	if !controllerutil.ContainsFinalizer(kcc, consts.HaloCustomConfigFinalizerKCC) {
 		return nil
 	}
 
@@ -457,7 +457,7 @@ func (k *KatalystCustomConfigController) handleKCCFinalizer(kcc *configapis.Kata
 				residueObjNames.Insert(native.GenerateUniqObjectNameKey(o))
 			}
 
-			return k.updateKCCStatusCondition(kcc, configapis.KatalystCustomConfigConditionTypeValid, v1.ConditionFalse,
+			return k.updateKCCStatusCondition(kcc, configapis.HaloCustomConfigConditionTypeValid, v1.ConditionFalse,
 				kccConditionTypeValidReasonTerminating, fmt.Sprintf("residue configs: %s", residueObjNames.List()))
 		}
 	}
@@ -469,17 +469,17 @@ func (k *KatalystCustomConfigController) handleKCCFinalizer(kcc *configapis.Kata
 	return nil
 }
 
-func (k *KatalystCustomConfigController) ensureKCCFinalizer(kcc *configapis.KatalystCustomConfig) (*configapis.KatalystCustomConfig, error) {
+func (k *HaloCustomConfigController) ensureKCCFinalizer(kcc *configapis.HaloCustomConfig) (*configapis.HaloCustomConfig, error) {
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var err, getErr error
-		if controllerutil.ContainsFinalizer(kcc, consts.KatalystCustomConfigFinalizerKCC) {
+		if controllerutil.ContainsFinalizer(kcc, consts.HaloCustomConfigFinalizerKCC) {
 			return nil
 		}
 
-		controllerutil.AddFinalizer(kcc, consts.KatalystCustomConfigFinalizerKCC)
+		controllerutil.AddFinalizer(kcc, consts.HaloCustomConfigFinalizerKCC)
 		newKCC, err := k.kccControl.UpdateKCC(k.ctx, kcc, metav1.UpdateOptions{})
 		if apierrors.IsConflict(err) {
-			newKCC, getErr = k.client.InternalClient.ConfigV1alpha1().KatalystCustomConfigs(kcc.Namespace).Get(k.ctx, kcc.Name, metav1.GetOptions{ResourceVersion: "0"})
+			newKCC, getErr = k.client.InternalClient.ConfigV1alpha1().HaloCustomConfigs(kcc.Namespace).Get(k.ctx, kcc.Name, metav1.GetOptions{ResourceVersion: "0"})
 			if err != nil {
 				return getErr
 			}
@@ -495,17 +495,17 @@ func (k *KatalystCustomConfigController) ensureKCCFinalizer(kcc *configapis.Kata
 	return kcc, nil
 }
 
-func (k *KatalystCustomConfigController) removeKCCFinalizer(kcc *configapis.KatalystCustomConfig) error {
+func (k *HaloCustomConfigController) removeKCCFinalizer(kcc *configapis.HaloCustomConfig) error {
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var err, getErr error
-		if !controllerutil.ContainsFinalizer(kcc, consts.KatalystCustomConfigFinalizerKCC) {
+		if !controllerutil.ContainsFinalizer(kcc, consts.HaloCustomConfigFinalizerKCC) {
 			return nil
 		}
 
-		controllerutil.RemoveFinalizer(kcc, consts.KatalystCustomConfigFinalizerKCC)
+		controllerutil.RemoveFinalizer(kcc, consts.HaloCustomConfigFinalizerKCC)
 		newKCC, err := k.kccControl.UpdateKCC(k.ctx, kcc, metav1.UpdateOptions{})
 		if apierrors.IsConflict(err) {
-			newKCC, getErr = k.client.InternalClient.ConfigV1alpha1().KatalystCustomConfigs(kcc.Namespace).Get(k.ctx, kcc.Name, metav1.GetOptions{ResourceVersion: "0"})
+			newKCC, getErr = k.client.InternalClient.ConfigV1alpha1().HaloCustomConfigs(kcc.Namespace).Get(k.ctx, kcc.Name, metav1.GetOptions{ResourceVersion: "0"})
 			if err != nil {
 				return getErr
 			}
@@ -522,7 +522,7 @@ func (k *KatalystCustomConfigController) removeKCCFinalizer(kcc *configapis.Kata
 }
 
 // checkNodeLabelSelectorAllowedKeyList checks if the priority of NodeLabelSelectorAllowedKeyList is duplicated
-func checkNodeLabelSelectorAllowedKeyList(kcc *configapis.KatalystCustomConfig) (string, bool) {
+func checkNodeLabelSelectorAllowedKeyList(kcc *configapis.HaloCustomConfig) (string, bool) {
 	duplicatedPrioritySet := sets.NewInt32()
 	priorityKeyListMap := map[int32]bool{}
 	for _, priorityAllowedKeyList := range kcc.Spec.NodeLabelSelectorAllowedKeyList {
@@ -540,10 +540,10 @@ func checkNodeLabelSelectorAllowedKeyList(kcc *configapis.KatalystCustomConfig) 
 	return "", true
 }
 
-// setKatalystCustomConfigConditions is used to set conditions for kcc
-func setKatalystCustomConfigConditions(
-	kcc *configapis.KatalystCustomConfig,
-	conditionType configapis.KatalystCustomConfigConditionType,
+// setHaloCustomConfigConditions is used to set conditions for kcc
+func setHaloCustomConfigConditions(
+	kcc *configapis.HaloCustomConfig,
+	conditionType configapis.HaloCustomConfigConditionType,
 	conditionStatus v1.ConditionStatus,
 	reason, message string,
 ) bool {
@@ -556,7 +556,7 @@ func setKatalystCustomConfigConditions(
 	}
 
 	if conditionIndex == len(conditions) {
-		conditions = append(conditions, configapis.KatalystCustomConfigCondition{
+		conditions = append(conditions, configapis.HaloCustomConfigCondition{
 			Type: conditionType,
 		})
 	}

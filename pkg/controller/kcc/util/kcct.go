@@ -71,33 +71,33 @@ func ApplyKCCTargetConfigToCNC(cnc *apisv1alpha1.CustomNodeConfig,
 	}
 
 	idx := 0
-	katalystCustomConfigList := cnc.Status.KatalystCustomConfigList
+	haloCustomConfigList := cnc.Status.HaloCustomConfigList
 	// find target config
-	for ; idx < len(katalystCustomConfigList); idx++ {
-		if katalystCustomConfigList[idx].ConfigType == gvr {
+	for ; idx < len(haloCustomConfigList); idx++ {
+		if haloCustomConfigList[idx].ConfigType == gvr {
 			break
 		}
 	}
 
 	// update target config if the gvr is already existed, otherwise append it and sort
-	if idx < len(katalystCustomConfigList) {
-		katalystCustomConfigList[idx] = apisv1alpha1.TargetConfig{
+	if idx < len(haloCustomConfigList) {
+		haloCustomConfigList[idx] = apisv1alpha1.TargetConfig{
 			ConfigType:      gvr,
 			ConfigNamespace: targetResource.GetNamespace(),
 			ConfigName:      targetResource.GetName(),
 			Hash:            targetResource.GetHash(),
 		}
 	} else {
-		katalystCustomConfigList = append(katalystCustomConfigList, apisv1alpha1.TargetConfig{
+		haloCustomConfigList = append(haloCustomConfigList, apisv1alpha1.TargetConfig{
 			ConfigType:      gvr,
 			ConfigNamespace: targetResource.GetNamespace(),
 			ConfigName:      targetResource.GetName(),
 			Hash:            targetResource.GetHash(),
 		})
 
-		cnc.Status.KatalystCustomConfigList = katalystCustomConfigList
-		sort.SliceStable(katalystCustomConfigList, func(i, j int) bool {
-			return katalystCustomConfigList[i].ConfigType.String() < katalystCustomConfigList[j].ConfigType.String()
+		cnc.Status.HaloCustomConfigList = haloCustomConfigList
+		sort.SliceStable(haloCustomConfigList, func(i, j int) bool {
+			return haloCustomConfigList[i].ConfigType.String() < haloCustomConfigList[j].ConfigType.String()
 		})
 	}
 }
@@ -108,7 +108,7 @@ func ApplyKCCTargetConfigToCNC(cnc *apisv1alpha1.CustomNodeConfig,
 // 2. if there is only one matched labelSelector config with the highest priority, and it is valid, return it
 // 3. if there is only one global config (either nodeNames or labelSelector is not existed), and it is valid, return it
 // 4. otherwise, return nil to keep current state no changed
-func FindMatchedKCCTargetConfigForNode(cnc *apisv1alpha1.CustomNodeConfig, targetAccessor kcctarget.KatalystCustomConfigTargetAccessor) (*unstructured.Unstructured, error) {
+func FindMatchedKCCTargetConfigForNode(cnc *apisv1alpha1.CustomNodeConfig, targetAccessor kcctarget.HaloCustomConfigTargetAccessor) (*unstructured.Unstructured, error) {
 	kccTargetList, err := targetAccessor.List(labels.Everything())
 	if err != nil {
 		return nil, err

@@ -49,14 +49,14 @@ func generateTestGenericClientSet(objects ...runtime.Object) *client.GenericClie
 	}
 }
 
-func constructKatalystCustomConfigLoader() ConfigurationLoader {
+func constructHaloCustomConfigLoader() ConfigurationLoader {
 	nodeName := "test-node"
 	c := &v1alpha1.CustomNodeConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 		},
 		Status: v1alpha1.CustomNodeConfigStatus{
-			KatalystCustomConfigList: []v1alpha1.TargetConfig{
+			HaloCustomConfigList: []v1alpha1.TargetConfig{
 				{
 					ConfigName:      "default",
 					ConfigNamespace: "test-namespace",
@@ -92,10 +92,10 @@ func constructKatalystCustomConfigLoader() ConfigurationLoader {
 		&metaconfig.CNCConfiguration{CustomNodeConfigCacheTTL: 1 * time.Second},
 		clientSet.InternalClient.ConfigV1alpha1().CustomNodeConfigs())
 
-	return NewKatalystCustomConfigLoader(clientSet, 1*time.Second, cncFetcher)
+	return NewHaloCustomConfigLoader(clientSet, 1*time.Second, cncFetcher)
 }
 
-func Test_katalystCustomConfigLoader_LoadConfig(t *testing.T) {
+func Test_haloCustomConfigLoader_LoadConfig(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
@@ -121,7 +121,7 @@ func Test_katalystCustomConfigLoader_LoadConfig(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			c := constructKatalystCustomConfigLoader()
+			c := constructHaloCustomConfigLoader()
 			if err := c.LoadConfig(tt.args.ctx, tt.args.gvr, tt.args.conf); (err != nil) != tt.wantErr {
 				t.Errorf("LoadConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}

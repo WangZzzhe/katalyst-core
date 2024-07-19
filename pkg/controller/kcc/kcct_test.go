@@ -88,7 +88,7 @@ func generateTestNodeNamesTargetResource(name string, nodeNames []string) util.K
 	}))
 }
 
-func TestKatalystCustomConfigTargetController_Run(t *testing.T) {
+func TestHaloCustomConfigTargetController_Run(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
@@ -106,12 +106,12 @@ func TestKatalystCustomConfigTargetController_Run(t *testing.T) {
 			name: "kcc and kcc target are all valid",
 			args: args{
 				kccList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "test-kcc",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -207,12 +207,12 @@ func TestKatalystCustomConfigTargetController_Run(t *testing.T) {
 			name: "kcc target from valid to invalid",
 			args: args{
 				kccList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "test-kcc",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -312,20 +312,20 @@ func TestKatalystCustomConfigTargetController_Run(t *testing.T) {
 			conf := generateTestConfiguration(t)
 
 			ctx := context.Background()
-			targetHandler := kcctarget.NewKatalystCustomConfigTargetHandler(
+			targetHandler := kcctarget.NewHaloCustomConfigTargetHandler(
 				ctx,
 				genericContext.Client,
 				conf.ControllersConfiguration.KCCConfig,
-				genericContext.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+				genericContext.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 			)
 
-			targetController, err := NewKatalystCustomConfigTargetController(
+			targetController, err := NewHaloCustomConfigTargetController(
 				ctx,
 				conf.GenericConfiguration,
 				conf.GenericControllerConfiguration,
 				conf.KCCConfig,
 				genericContext.Client,
-				genericContext.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+				genericContext.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 				metrics.DummyMetrics{},
 				targetHandler,
 			)

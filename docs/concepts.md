@@ -165,5 +165,5 @@ Beside the core QoS level,  katalyst also provides a mechanism to enhance the ab
 
 ## Configurations
 
-To make the configuration more flexible, katalyst designs a new mechanism to set configs on the run, and it works as a supplement for static configs defined via command-line flags. In katalyst, the implementation of this mechanism is called `KatalystCustomConfig` (`KCC` for short). It enables each daemon component to dynamically adjust its working status without restarting or re-deploying.
+To make the configuration more flexible, katalyst designs a new mechanism to set configs on the run, and it works as a supplement for static configs defined via command-line flags. In katalyst, the implementation of this mechanism is called `HaloCustomConfig` (`KCC` for short). It enables each daemon component to dynamically adjust its working status without restarting or re-deploying.
 For more information about KCC, please refer to [dynamic-configuration](proposals/qos-management/wip-20220706-dynamic-configuration.md).

@@ -16,21 +16,21 @@ limitations under the License.
 
 package consts
 
-// KatalystCustomConfigAnnotationKeyConfigHash defines const variables for kcc annotations about config hash.
+// HaloCustomConfigAnnotationKeyConfigHash defines const variables for kcc annotations about config hash.
 const (
-	KatalystCustomConfigAnnotationKeyConfigHash = "kcc.katalyst.kubewharf.io/config.hash"
+	HaloCustomConfigAnnotationKeyConfigHash = "kcc.halo.io/config.hash"
 )
 
-// KatalystCustomConfigFinalizerKCC defines const variables for kcc finalizer
+// HaloCustomConfigFinalizerKCC defines const variables for kcc finalizer
 const (
-	KatalystCustomConfigFinalizerKCC = "kcc.katalyst.kubewharf.io/kcc-controller"
+	HaloCustomConfigFinalizerKCC = "kcc.halo.io/kcc-controller"
 )
 
 // const variables for kcc target finalizer
 const (
-	KatalystCustomConfigTargetFinalizerKCC  = "kcct.katalyst.kubewharf.io/kcc-controller"
-	KatalystCustomConfigTargetFinalizerCNC  = "kcct.katalyst.kubewharf.io/cnc-controller"
-	KatalystCustomConfigTargetFinalizerKCCT = "kcct.katalyst.kubewharf.io/kcct-controller"
+	HaloCustomConfigTargetFinalizerKCC  = "kcct.halo.io/kcc-controller"
+	HaloCustomConfigTargetFinalizerCNC  = "kcct.halo.io/cnc-controller"
+	HaloCustomConfigTargetFinalizerKCCT = "kcct.halo.io/kcct-controller"
 )
 
 // generic spec fields for configuration CRD (referred by KCC)

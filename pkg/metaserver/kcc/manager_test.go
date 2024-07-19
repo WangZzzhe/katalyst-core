@@ -88,7 +88,7 @@ func generateTestCNC(nodeName string) *v1alpha1.CustomNodeConfig {
 			Name: nodeName,
 		},
 		Status: v1alpha1.CustomNodeConfigStatus{
-			KatalystCustomConfigList: []v1alpha1.TargetConfig{
+			HaloCustomConfigList: []v1alpha1.TargetConfig{
 				{
 					ConfigName:      "default",
 					ConfigNamespace: "test-namespace",
@@ -137,7 +137,7 @@ func constructTestDynamicConfigManager(t *testing.T, nodeName, dir string, evict
 	checkpointManager, err := checkpointmanager.NewCheckpointManager(conf.CheckpointManagerDir)
 	require.NoError(t, err)
 
-	configLoader := NewKatalystCustomConfigLoader(clientSet, 1*time.Second, cncFetcher)
+	configLoader := NewHaloCustomConfigLoader(clientSet, 1*time.Second, cncFetcher)
 	manager := &DynamicConfigManager{
 		conf:                conf.AgentConfiguration,
 		defaultConfig:       deepCopy(conf.GetDynamicConfiguration()),

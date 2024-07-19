@@ -26,29 +26,29 @@ import (
 	clientset "github.com/kubewharf/katalyst-api/pkg/client/clientset/versioned"
 )
 
-// KCCControl is used to update KatalystCustomConfig
+// KCCControl is used to update HaloCustomConfig
 // todo: use patch instead of update to avoid conflict
 type KCCControl interface {
 	// UpdateKCC is used to update the changes for KCC spec and metadata contents
-	UpdateKCC(ctx context.Context, kcc *v1alpha1.KatalystCustomConfig,
-		opts metav1.UpdateOptions) (*v1alpha1.KatalystCustomConfig, error)
+	UpdateKCC(ctx context.Context, kcc *v1alpha1.HaloCustomConfig,
+		opts metav1.UpdateOptions) (*v1alpha1.HaloCustomConfig, error)
 
 	// UpdateKCCStatus is used to update the change for KCC status
-	UpdateKCCStatus(ctx context.Context, kcc *v1alpha1.KatalystCustomConfig,
-		opts metav1.UpdateOptions) (*v1alpha1.KatalystCustomConfig, error)
+	UpdateKCCStatus(ctx context.Context, kcc *v1alpha1.HaloCustomConfig,
+		opts metav1.UpdateOptions) (*v1alpha1.HaloCustomConfig, error)
 }
 
 type DummyKCCControl struct{}
 
-func (d DummyKCCControl) UpdateKCC(_ context.Context, kcc *v1alpha1.KatalystCustomConfig,
+func (d DummyKCCControl) UpdateKCC(_ context.Context, kcc *v1alpha1.HaloCustomConfig,
 	_ metav1.UpdateOptions,
-) (*v1alpha1.KatalystCustomConfig, error) {
+) (*v1alpha1.HaloCustomConfig, error) {
 	return kcc, nil
 }
 
-func (d DummyKCCControl) UpdateKCCStatus(_ context.Context, kcc *v1alpha1.KatalystCustomConfig,
+func (d DummyKCCControl) UpdateKCCStatus(_ context.Context, kcc *v1alpha1.HaloCustomConfig,
 	_ metav1.UpdateOptions,
-) (*v1alpha1.KatalystCustomConfig, error) {
+) (*v1alpha1.HaloCustomConfig, error) {
 	return kcc, nil
 }
 
@@ -56,24 +56,24 @@ type RealKCCControl struct {
 	client clientset.Interface
 }
 
-func (r *RealKCCControl) UpdateKCC(ctx context.Context, kcc *v1alpha1.KatalystCustomConfig,
+func (r *RealKCCControl) UpdateKCC(ctx context.Context, kcc *v1alpha1.HaloCustomConfig,
 	opts metav1.UpdateOptions,
-) (*v1alpha1.KatalystCustomConfig, error) {
+) (*v1alpha1.HaloCustomConfig, error) {
 	if kcc == nil {
 		return nil, fmt.Errorf("can't update a nil KCC")
 	}
 
-	return r.client.ConfigV1alpha1().KatalystCustomConfigs(kcc.Namespace).Update(ctx, kcc, opts)
+	return r.client.ConfigV1alpha1().HaloCustomConfigs(kcc.Namespace).Update(ctx, kcc, opts)
 }
 
-func (r *RealKCCControl) UpdateKCCStatus(ctx context.Context, kcc *v1alpha1.KatalystCustomConfig,
+func (r *RealKCCControl) UpdateKCCStatus(ctx context.Context, kcc *v1alpha1.HaloCustomConfig,
 	opts metav1.UpdateOptions,
-) (*v1alpha1.KatalystCustomConfig, error) {
+) (*v1alpha1.HaloCustomConfig, error) {
 	if kcc == nil {
 		return nil, fmt.Errorf("can't update a nil KCC's status")
 	}
 
-	return r.client.ConfigV1alpha1().KatalystCustomConfigs(kcc.Namespace).UpdateStatus(ctx, kcc, opts)
+	return r.client.ConfigV1alpha1().HaloCustomConfigs(kcc.Namespace).UpdateStatus(ctx, kcc, opts)
 }
 
 func NewRealKCCControl(client clientset.Interface) *RealKCCControl {

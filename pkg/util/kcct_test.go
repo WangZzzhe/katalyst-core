@@ -135,7 +135,7 @@ func Test_kccTargetResource_GetHash(t *testing.T) {
 				Unstructured: toTestUnstructured(&v1alpha1.AdminQoSConfiguration{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							consts.KatalystCustomConfigAnnotationKeyConfigHash: "hash-1",
+							consts.HaloCustomConfigAnnotationKeyConfigHash: "hash-1",
 						},
 					},
 				}),
@@ -507,7 +507,7 @@ func Test_kccTargetResource_SetHash(t *testing.T) {
 			want: toTestUnstructured(&v1alpha1.AdminQoSConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						consts.KatalystCustomConfigAnnotationKeyConfigHash: "hash-1",
+						consts.HaloCustomConfigAnnotationKeyConfigHash: "hash-1",
 					},
 				},
 			}),
@@ -518,7 +518,7 @@ func Test_kccTargetResource_SetHash(t *testing.T) {
 				Unstructured: toTestUnstructured(&v1alpha1.AdminQoSConfiguration{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							consts.KatalystCustomConfigAnnotationKeyConfigHash: "hash-1",
+							consts.HaloCustomConfigAnnotationKeyConfigHash: "hash-1",
 						},
 					},
 				}),
@@ -529,7 +529,7 @@ func Test_kccTargetResource_SetHash(t *testing.T) {
 			want: toTestUnstructured(&v1alpha1.AdminQoSConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						consts.KatalystCustomConfigAnnotationKeyConfigHash: "hash-2",
+						consts.HaloCustomConfigAnnotationKeyConfigHash: "hash-2",
 					},
 				},
 			}),

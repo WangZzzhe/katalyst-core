@@ -36,7 +36,7 @@ import (
 	"github.com/kubewharf/katalyst-core/pkg/util/native"
 )
 
-type KatalystCustomConfigTargetHandler struct {
+type HaloCustomConfigTargetHandler struct {
 	mu sync.RWMutex
 
 	ctx       context.Context
@@ -47,43 +47,43 @@ type KatalystCustomConfigTargetHandler struct {
 
 	// map gvr to kcc key set; actually, it's invalid to hold more than one kcc for
 	// one individual gvr, and should be alerted
-	gvrKatalystCustomConfigMap map[metav1.GroupVersionResource]sets.String
-	// katalystCustomConfigGVRMap map kcc key to gvr; since the gvc in kcc may be unexpected changed
+	gvrHaloCustomConfigMap map[metav1.GroupVersionResource]sets.String
+	// haloCustomConfigGVRMap map kcc key to gvr; since the gvc in kcc may be unexpected changed
 	// by cases, store in cache to make sure we can still find ite original mapping
-	katalystCustomConfigGVRMap map[string]metav1.GroupVersionResource
+	haloCustomConfigGVRMap map[string]metav1.GroupVersionResource
 	// map gvr to kcc target accessor
-	targetAccessorMap map[metav1.GroupVersionResource]KatalystCustomConfigTargetAccessor
+	targetAccessorMap map[metav1.GroupVersionResource]HaloCustomConfigTargetAccessor
 	// targetHandlerFuncMap stores those handler functions for all controllers
 	// that are interested in kcc-target changes
-	targetHandlerFuncMap map[string]KatalystCustomConfigTargetHandlerFunc
+	targetHandlerFuncMap map[string]HaloCustomConfigTargetHandlerFunc
 }
 
-func NewKatalystCustomConfigTargetHandler(ctx context.Context, client *kcclient.GenericClientSet, kccConfig *controller.KCCConfig,
-	katalystCustomConfigInformer configinformers.KatalystCustomConfigInformer,
-) *KatalystCustomConfigTargetHandler {
-	k := &KatalystCustomConfigTargetHandler{
+func NewHaloCustomConfigTargetHandler(ctx context.Context, client *kcclient.GenericClientSet, kccConfig *controller.KCCConfig,
+	haloCustomConfigInformer configinformers.HaloCustomConfigInformer,
+) *HaloCustomConfigTargetHandler {
+	k := &HaloCustomConfigTargetHandler{
 		ctx:       ctx,
 		client:    client,
 		kccConfig: kccConfig,
 		syncedFunc: []cache.InformerSynced{
-			katalystCustomConfigInformer.Informer().HasSynced,
+			haloCustomConfigInformer.Informer().HasSynced,
 		},
-		gvrKatalystCustomConfigMap: make(map[metav1.GroupVersionResource]sets.String),
-		katalystCustomConfigGVRMap: make(map[string]metav1.GroupVersionResource),
-		targetHandlerFuncMap:       make(map[string]KatalystCustomConfigTargetHandlerFunc),
-		targetAccessorMap:          make(map[metav1.GroupVersionResource]KatalystCustomConfigTargetAccessor),
+		gvrHaloCustomConfigMap: make(map[metav1.GroupVersionResource]sets.String),
+		haloCustomConfigGVRMap: make(map[string]metav1.GroupVersionResource),
+		targetHandlerFuncMap:   make(map[string]HaloCustomConfigTargetHandlerFunc),
+		targetAccessorMap:      make(map[metav1.GroupVersionResource]HaloCustomConfigTargetAccessor),
 	}
 
-	katalystCustomConfigInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    k.addKatalystCustomConfigEventHandle,
-		UpdateFunc: k.updateKatalystCustomConfigEventHandle,
-		DeleteFunc: k.deleteKatalystCustomConfigEventHandle,
+	haloCustomConfigInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    k.addHaloCustomConfigEventHandle,
+		UpdateFunc: k.updateHaloCustomConfigEventHandle,
+		DeleteFunc: k.deleteHaloCustomConfigEventHandle,
 	})
 	return k
 }
 
 // HasSynced whether all cache has synced
-func (k *KatalystCustomConfigTargetHandler) HasSynced() bool {
+func (k *HaloCustomConfigTargetHandler) HasSynced() bool {
 	for _, hasSynced := range k.syncedFunc {
 		if !hasSynced() {
 			return false
@@ -92,13 +92,13 @@ func (k *KatalystCustomConfigTargetHandler) HasSynced() bool {
 	return true
 }
 
-func (k *KatalystCustomConfigTargetHandler) Run() {
+func (k *HaloCustomConfigTargetHandler) Run() {
 	defer k.shutDown()
 	<-k.ctx.Done()
 }
 
 // RegisterTargetHandler is used to register handler functions for the given gvr
-func (k *KatalystCustomConfigTargetHandler) RegisterTargetHandler(name string, handlerFunc KatalystCustomConfigTargetHandlerFunc) {
+func (k *HaloCustomConfigTargetHandler) RegisterTargetHandler(name string, handlerFunc HaloCustomConfigTargetHandlerFunc) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -106,18 +106,18 @@ func (k *KatalystCustomConfigTargetHandler) RegisterTargetHandler(name string, h
 }
 
 // GetKCCKeyListByGVR get kcc keyList by gvr.
-func (k *KatalystCustomConfigTargetHandler) GetKCCKeyListByGVR(gvr metav1.GroupVersionResource) []string {
+func (k *HaloCustomConfigTargetHandler) GetKCCKeyListByGVR(gvr metav1.GroupVersionResource) []string {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 
-	kccKeys, ok := k.gvrKatalystCustomConfigMap[gvr]
+	kccKeys, ok := k.gvrHaloCustomConfigMap[gvr]
 	if ok {
 		return kccKeys.List()
 	}
 	return nil
 }
 
-func (k *KatalystCustomConfigTargetHandler) GetTargetAccessorByGVR(gvr metav1.GroupVersionResource) (KatalystCustomConfigTargetAccessor, bool) {
+func (k *HaloCustomConfigTargetHandler) GetTargetAccessorByGVR(gvr metav1.GroupVersionResource) (HaloCustomConfigTargetAccessor, bool) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 
@@ -129,7 +129,7 @@ func (k *KatalystCustomConfigTargetHandler) GetTargetAccessorByGVR(gvr metav1.Gr
 }
 
 // RangeGVRTargetAccessor is used to walk through all accessors and perform the given function
-func (k *KatalystCustomConfigTargetHandler) RangeGVRTargetAccessor(f func(gvr metav1.GroupVersionResource, accessor KatalystCustomConfigTargetAccessor) bool) {
+func (k *HaloCustomConfigTargetHandler) RangeGVRTargetAccessor(f func(gvr metav1.GroupVersionResource, accessor HaloCustomConfigTargetAccessor) bool) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 
@@ -141,10 +141,10 @@ func (k *KatalystCustomConfigTargetHandler) RangeGVRTargetAccessor(f func(gvr me
 	}
 }
 
-func (k *KatalystCustomConfigTargetHandler) addKatalystCustomConfigEventHandle(obj interface{}) {
-	kcc, ok := obj.(*configapis.KatalystCustomConfig)
+func (k *HaloCustomConfigTargetHandler) addHaloCustomConfigEventHandle(obj interface{}) {
+	kcc, ok := obj.(*configapis.HaloCustomConfig)
 	if !ok {
-		klog.Errorf("cannot convert obj to *KatalystCustomConfig: %v", obj)
+		klog.Errorf("cannot convert obj to *HaloCustomConfig: %v", obj)
 		return
 	}
 
@@ -161,16 +161,16 @@ func (k *KatalystCustomConfigTargetHandler) addKatalystCustomConfigEventHandle(o
 	}
 }
 
-func (k *KatalystCustomConfigTargetHandler) updateKatalystCustomConfigEventHandle(old interface{}, new interface{}) {
-	oldKCC, ok := old.(*configapis.KatalystCustomConfig)
+func (k *HaloCustomConfigTargetHandler) updateHaloCustomConfigEventHandle(old interface{}, new interface{}) {
+	oldKCC, ok := old.(*configapis.HaloCustomConfig)
 	if !ok {
-		klog.Errorf("cannot convert obj to *KatalystCustomConfig: %v", new)
+		klog.Errorf("cannot convert obj to *HaloCustomConfig: %v", new)
 		return
 	}
 
-	newKCC, ok := new.(*configapis.KatalystCustomConfig)
+	newKCC, ok := new.(*configapis.HaloCustomConfig)
 	if !ok {
-		klog.Errorf("cannot convert obj to *KatalystCustomConfig: %v", new)
+		klog.Errorf("cannot convert obj to *HaloCustomConfig: %v", new)
 		return
 	}
 
@@ -204,10 +204,10 @@ func (k *KatalystCustomConfigTargetHandler) updateKatalystCustomConfigEventHandl
 	}
 }
 
-func (k *KatalystCustomConfigTargetHandler) deleteKatalystCustomConfigEventHandle(obj interface{}) {
-	kcc, ok := obj.(*configapis.KatalystCustomConfig)
+func (k *HaloCustomConfigTargetHandler) deleteHaloCustomConfigEventHandle(obj interface{}) {
+	kcc, ok := obj.(*configapis.HaloCustomConfig)
 	if !ok {
-		klog.Errorf("cannot convert obj to *KatalystCustomConfig: %v", obj)
+		klog.Errorf("cannot convert obj to *HaloCustomConfig: %v", obj)
 		return
 	}
 
@@ -235,10 +235,10 @@ func (k *KatalystCustomConfigTargetHandler) deleteKatalystCustomConfigEventHandl
 }
 
 // addOrUpdateGVRAndKCC add gvr and kcc key to cache and return current kcc keys which use this gvr.
-func (k *KatalystCustomConfigTargetHandler) addOrUpdateGVRAndKCC(gvr metav1.GroupVersionResource, key string) (KatalystCustomConfigTargetAccessor, error) {
+func (k *HaloCustomConfigTargetHandler) addOrUpdateGVRAndKCC(gvr metav1.GroupVersionResource, key string) (HaloCustomConfigTargetAccessor, error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	old, ok := k.katalystCustomConfigGVRMap[key]
+	old, ok := k.haloCustomConfigGVRMap[key]
 	if ok && old != gvr {
 		k.deleteGVRAndKCCKeyWithoutLock(old, key)
 	}
@@ -247,17 +247,17 @@ func (k *KatalystCustomConfigTargetHandler) addOrUpdateGVRAndKCC(gvr metav1.Grou
 }
 
 // deleteGVRAndKCCKey delete gvr and kcc key, return whether it is empty after delete that
-func (k *KatalystCustomConfigTargetHandler) deleteGVRAndKCCKey(gvr metav1.GroupVersionResource, key string) {
+func (k *HaloCustomConfigTargetHandler) deleteGVRAndKCCKey(gvr metav1.GroupVersionResource, key string) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	k.deleteGVRAndKCCKeyWithoutLock(gvr, key)
 }
 
-func (k *KatalystCustomConfigTargetHandler) deleteGVRAndKCCKeyWithoutLock(gvr metav1.GroupVersionResource, key string) {
-	kccKeys, ok := k.gvrKatalystCustomConfigMap[gvr]
+func (k *HaloCustomConfigTargetHandler) deleteGVRAndKCCKeyWithoutLock(gvr metav1.GroupVersionResource, key string) {
+	kccKeys, ok := k.gvrHaloCustomConfigMap[gvr]
 	if ok {
 		delete(kccKeys, key)
-		delete(k.katalystCustomConfigGVRMap, key)
+		delete(k.haloCustomConfigGVRMap, key)
 	}
 
 	if len(kccKeys) == 0 {
@@ -265,20 +265,20 @@ func (k *KatalystCustomConfigTargetHandler) deleteGVRAndKCCKeyWithoutLock(gvr me
 			accessor.Stop()
 		}
 		delete(k.targetAccessorMap, gvr)
-		delete(k.gvrKatalystCustomConfigMap, gvr)
+		delete(k.gvrHaloCustomConfigMap, gvr)
 	}
 }
 
-func (k *KatalystCustomConfigTargetHandler) addGVRAndKCCKeyWithoutLock(gvr metav1.GroupVersionResource, key string) (KatalystCustomConfigTargetAccessor, error) {
+func (k *HaloCustomConfigTargetHandler) addGVRAndKCCKeyWithoutLock(gvr metav1.GroupVersionResource, key string) (HaloCustomConfigTargetAccessor, error) {
 	if err := k.checkGVRValid(gvr); err != nil {
 		return nil, err
 	}
 
-	_, ok := k.gvrKatalystCustomConfigMap[gvr]
+	_, ok := k.gvrHaloCustomConfigMap[gvr]
 	if !ok {
 		_, ok := k.targetAccessorMap[gvr]
 		if !ok {
-			accessor, err := NewRealKatalystCustomConfigTargetAccessor(gvr,
+			accessor, err := NewRealHaloCustomConfigTargetAccessor(gvr,
 				k.client.DynamicClient, k.targetHandlerFuncMap)
 			if err != nil {
 				return nil, err
@@ -288,16 +288,16 @@ func (k *KatalystCustomConfigTargetHandler) addGVRAndKCCKeyWithoutLock(gvr metav
 		} else {
 			klog.Fatalf("gvr of targetAccessorMap %s not exist", gvr.String())
 		}
-		k.gvrKatalystCustomConfigMap[gvr] = sets.NewString()
+		k.gvrHaloCustomConfigMap[gvr] = sets.NewString()
 	}
-	k.gvrKatalystCustomConfigMap[gvr].Insert(key)
-	k.katalystCustomConfigGVRMap[key] = gvr
+	k.gvrHaloCustomConfigMap[gvr].Insert(key)
+	k.haloCustomConfigGVRMap[key] = gvr
 	return k.targetAccessorMap[gvr], nil
 }
 
 // checkGVRValid is used to check whether the given gvr is valid, skip to create corresponding
 // target accessor otherwise
-func (k *KatalystCustomConfigTargetHandler) checkGVRValid(gvr metav1.GroupVersionResource) error {
+func (k *HaloCustomConfigTargetHandler) checkGVRValid(gvr metav1.GroupVersionResource) error {
 	if !k.kccConfig.ValidAPIGroupSet.Has(gvr.Group) {
 		return fmt.Errorf("gvr %s is not in valid api group set", gvr.String())
 	}
@@ -317,7 +317,7 @@ func (k *KatalystCustomConfigTargetHandler) checkGVRValid(gvr metav1.GroupVersio
 	return apierrors.NewNotFound(schemaGVR.GroupResource(), schemaGVR.Resource)
 }
 
-func (k *KatalystCustomConfigTargetHandler) shutDown() {
+func (k *HaloCustomConfigTargetHandler) shutDown() {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -326,7 +326,7 @@ func (k *KatalystCustomConfigTargetHandler) shutDown() {
 	}
 
 	// clear all maps
-	k.targetAccessorMap = make(map[metav1.GroupVersionResource]KatalystCustomConfigTargetAccessor)
-	k.gvrKatalystCustomConfigMap = make(map[metav1.GroupVersionResource]sets.String)
-	k.katalystCustomConfigGVRMap = make(map[string]metav1.GroupVersionResource)
+	k.targetAccessorMap = make(map[metav1.GroupVersionResource]HaloCustomConfigTargetAccessor)
+	k.gvrHaloCustomConfigMap = make(map[metav1.GroupVersionResource]sets.String)
+	k.haloCustomConfigGVRMap = make(map[string]metav1.GroupVersionResource)
 }

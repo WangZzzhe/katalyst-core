@@ -52,12 +52,12 @@ func TestCustomNodeConfigController_Run(t *testing.T) {
 			name: "kcc target all valid",
 			args: args{
 				cncAndKCCList: []runtime.Object{
-					&v1alpha1.KatalystCustomConfig{
+					&v1alpha1.HaloCustomConfig{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "test-kcc",
 							Namespace: "default",
 						},
-						Spec: v1alpha1.KatalystCustomConfigSpec{
+						Spec: v1alpha1.HaloCustomConfigSpec{
 							TargetType: crd.AdminQoSConfigurationGVR,
 							NodeLabelSelectorAllowedKeyList: []v1alpha1.PriorityNodeLabelSelectorAllowedKeyList{
 								{
@@ -123,11 +123,11 @@ func TestCustomNodeConfigController_Run(t *testing.T) {
 			conf := generateTestConfiguration(t)
 
 			ctx := context.Background()
-			targetHandler := kcctarget.NewKatalystCustomConfigTargetHandler(
+			targetHandler := kcctarget.NewHaloCustomConfigTargetHandler(
 				ctx,
 				genericContext.Client,
 				conf.ControllersConfiguration.KCCConfig,
-				genericContext.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+				genericContext.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 			)
 
 			cnc, err := NewCustomNodeConfigController(

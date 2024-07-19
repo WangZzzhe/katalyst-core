@@ -129,7 +129,7 @@ type DynamicConfigManager struct {
 func NewDynamicConfigManager(clientSet *client.GenericClientSet, emitter metrics.MetricEmitter,
 	cncFetcher cnc.CNCFetcher, conf *pkgconfig.Configuration,
 ) (ConfigurationManager, error) {
-	configLoader := NewKatalystCustomConfigLoader(clientSet, conf.ConfigCacheTTL, cncFetcher)
+	configLoader := NewHaloCustomConfigLoader(clientSet, conf.ConfigCacheTTL, cncFetcher)
 
 	checkpointManager, err := checkpointmanager.NewCheckpointManager(conf.CheckpointManagerDir)
 	if err != nil {

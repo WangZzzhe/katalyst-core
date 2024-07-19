@@ -47,7 +47,7 @@ func ToKCCTargetResource(obj *unstructured.Unstructured) KCCTargetResource {
 
 func (g KCCTargetResource) GetHash() string {
 	annotations := g.GetAnnotations()
-	if hash, ok := annotations[consts.KatalystCustomConfigAnnotationKeyConfigHash]; ok {
+	if hash, ok := annotations[consts.HaloCustomConfigAnnotationKeyConfigHash]; ok {
 		return hash
 	}
 	return ""
@@ -58,7 +58,7 @@ func (g KCCTargetResource) SetHash(hash string) {
 	if annotations == nil {
 		annotations = map[string]string{}
 	}
-	annotations[consts.KatalystCustomConfigAnnotationKeyConfigHash] = hash
+	annotations[consts.HaloCustomConfigAnnotationKeyConfigHash] = hash
 	g.SetAnnotations(annotations)
 }
 

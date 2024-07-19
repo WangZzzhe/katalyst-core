@@ -73,7 +73,7 @@ type CustomNodeConfigController struct {
 	syncedFunc []cache.InformerSynced
 
 	// targetHandler store gvr of kcc and gvr
-	targetHandler *kcctarget.KatalystCustomConfigTargetHandler
+	targetHandler *kcctarget.HaloCustomConfigTargetHandler
 
 	// metricsEmitter for emit metrics
 	metricsEmitter metrics.MetricEmitter
@@ -87,7 +87,7 @@ func NewCustomNodeConfigController(
 	client *kcclient.GenericClientSet,
 	customNodeConfigInformer configinformers.CustomNodeConfigInformer,
 	metricsEmitter metrics.MetricEmitter,
-	targetHandler *kcctarget.KatalystCustomConfigTargetHandler,
+	targetHandler *kcctarget.HaloCustomConfigTargetHandler,
 ) (*CustomNodeConfigController, error) {
 	c := &CustomNodeConfigController{
 		ctx:                       ctx,
@@ -122,7 +122,7 @@ func NewCustomNodeConfigController(
 	}
 
 	// register kcc-target informer handler
-	targetHandler.RegisterTargetHandler(cncControllerName, c.katalystCustomConfigTargetHandler)
+	targetHandler.RegisterTargetHandler(cncControllerName, c.haloCustomConfigTargetHandler)
 	return c, nil
 }
 
@@ -149,9 +149,9 @@ func (c *CustomNodeConfigController) Run() {
 	<-c.ctx.Done()
 }
 
-// katalystCustomConfigTargetHandler process object of kcc target type from targetAccessor, and
-// KatalystCustomConfigTargetAccessor will call this handler when some update event on target is added.
-func (c *CustomNodeConfigController) katalystCustomConfigTargetHandler(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error {
+// haloCustomConfigTargetHandler process object of kcc target type from targetAccessor, and
+// HaloCustomConfigTargetAccessor will call this handler when some update event on target is added.
+func (c *CustomNodeConfigController) haloCustomConfigTargetHandler(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error {
 	for _, syncFunc := range c.syncedFunc {
 		if !syncFunc() {
 			return fmt.Errorf("informer has not synced")
@@ -173,7 +173,7 @@ func (c *CustomNodeConfigController) katalystCustomConfigTargetHandler(gvr metav
 		return nil
 	}
 
-	target, err := util.EnsureKCCTargetFinalizer(c.ctx, c.unstructuredControl, consts.KatalystCustomConfigTargetFinalizerCNC, gvr, target)
+	target, err := util.EnsureKCCTargetFinalizer(c.ctx, c.unstructuredControl, consts.HaloCustomConfigTargetFinalizerCNC, gvr, target)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (c *CustomNodeConfigController) katalystCustomConfigTargetHandler(gvr metav
 }
 
 func (c *CustomNodeConfigController) handleKCCTargetFinalizer(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error {
-	if !controllerutil.ContainsFinalizer(target, consts.KatalystCustomConfigTargetFinalizerCNC) {
+	if !controllerutil.ContainsFinalizer(target, consts.HaloCustomConfigTargetFinalizerCNC) {
 		return nil
 	}
 
@@ -197,7 +197,7 @@ func (c *CustomNodeConfigController) handleKCCTargetFinalizer(gvr metav1.GroupVe
 		return err
 	}
 
-	err = util.RemoveKCCTargetFinalizer(c.ctx, c.unstructuredControl, consts.KatalystCustomConfigTargetFinalizerCNC, gvr, target)
+	err = util.RemoveKCCTargetFinalizer(c.ctx, c.unstructuredControl, consts.HaloCustomConfigTargetFinalizerCNC, gvr, target)
 	if err != nil {
 		return err
 	}
@@ -257,11 +257,11 @@ func (c *CustomNodeConfigController) enqueueCustomNodeConfig(cnc *configapi.Cust
 }
 
 func (c *CustomNodeConfigController) worker() {
-	for c.processNextKatalystCustomConfigWorkItem() {
+	for c.processNextHaloCustomConfigWorkItem() {
 	}
 }
 
-func (c *CustomNodeConfigController) processNextKatalystCustomConfigWorkItem() bool {
+func (c *CustomNodeConfigController) processNextHaloCustomConfigWorkItem() bool {
 	key, quit := c.customNodeConfigSyncQueue.Get()
 	if quit {
 		return false
@@ -318,7 +318,7 @@ func (c *CustomNodeConfigController) patchCNC(cnc *configapi.CustomNodeConfig,
 }
 
 func (c *CustomNodeConfigController) updateCustomNodeConfig(cnc *configapi.CustomNodeConfig) {
-	c.targetHandler.RangeGVRTargetAccessor(func(gvr metav1.GroupVersionResource, targetAccessor kcctarget.KatalystCustomConfigTargetAccessor) bool {
+	c.targetHandler.RangeGVRTargetAccessor(func(gvr metav1.GroupVersionResource, targetAccessor kcctarget.HaloCustomConfigTargetAccessor) bool {
 		matchedTarget, err := util.FindMatchedKCCTargetConfigForNode(cnc, targetAccessor)
 		if err != nil {
 			klog.Errorf("[cnc] gvr %s find matched target failed: %s", gvr, err)
@@ -339,7 +339,7 @@ func (c *CustomNodeConfigController) clearUnusedConfig() {
 
 	// save all gvr to map
 	configGVRSet := make(map[string]metav1.GroupVersionResource)
-	c.targetHandler.RangeGVRTargetAccessor(func(gvr metav1.GroupVersionResource, _ kcctarget.KatalystCustomConfigTargetAccessor) bool {
+	c.targetHandler.RangeGVRTargetAccessor(func(gvr metav1.GroupVersionResource, _ kcctarget.HaloCustomConfigTargetAccessor) bool {
 		configGVRSet[gvr.String()] = gvr
 		return true
 	})
@@ -353,7 +353,7 @@ func (c *CustomNodeConfigController) clearUnusedConfig() {
 
 	// func for clear cnc config if gvr config not exists
 	setFunc := func(cnc *configapi.CustomNodeConfig) {
-		cnc.Status.KatalystCustomConfigList = katalystutil.RemoveUnusedTargetConfig(cnc.Status.KatalystCustomConfigList, needToDeleteFunc)
+		cnc.Status.HaloCustomConfigList = katalystutil.RemoveUnusedTargetConfig(cnc.Status.HaloCustomConfigList, needToDeleteFunc)
 	}
 
 	clearCNCConfigs := func(i int) {

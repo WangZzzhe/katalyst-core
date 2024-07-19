@@ -50,7 +50,7 @@ type configCache struct {
 	targetConfigContent util.KCCTargetResource
 }
 
-type katalystCustomConfigLoader struct {
+type haloCustomConfigLoader struct {
 	client     *client.GenericClientSet
 	cncFetcher cnc.CNCFetcher
 
@@ -68,16 +68,16 @@ type katalystCustomConfigLoader struct {
 	configCache map[metav1.GroupVersionResource]configCache
 }
 
-// NewKatalystCustomConfigLoader create a new configManager to fetch KatalystCustomConfig.
+// NewHaloCustomConfigLoader create a new configManager to fetch HaloCustomConfig.
 // every LoadConfig() call tries to fetch the value from local cache; if it is
 // not there, invalidated or too old, we fetch it from api-server and refresh the
 // value in cache; otherwise it is just fetched from cache.
 // defaultGVRList s the list of default gvr fetched from remote api-server, if
 // LoadConfig() fetches a new gvr, it will be automatically added to.
-func NewKatalystCustomConfigLoader(clientSet *client.GenericClientSet, ttl time.Duration,
+func NewHaloCustomConfigLoader(clientSet *client.GenericClientSet, ttl time.Duration,
 	cncFetcher cnc.CNCFetcher,
 ) ConfigurationLoader {
-	return &katalystCustomConfigLoader{
+	return &haloCustomConfigLoader{
 		cncFetcher:          cncFetcher,
 		client:              clientSet,
 		ttl:                 ttl,
@@ -86,7 +86,7 @@ func NewKatalystCustomConfigLoader(clientSet *client.GenericClientSet, ttl time.
 	}
 }
 
-func (c *katalystCustomConfigLoader) LoadConfig(ctx context.Context, gvr metav1.GroupVersionResource, conf interface{}) error {
+func (c *haloCustomConfigLoader) LoadConfig(ctx context.Context, gvr metav1.GroupVersionResource, conf interface{}) error {
 	// get target config from updated cnc
 	targetConfig, err := c.getCNCTargetConfig(ctx, gvr)
 	if err != nil {
@@ -111,13 +111,13 @@ func (c *katalystCustomConfigLoader) LoadConfig(ctx context.Context, gvr metav1.
 }
 
 // getCNCTargetConfig get cnc target from cnc fetcher
-func (c *katalystCustomConfigLoader) getCNCTargetConfig(ctx context.Context, gvr metav1.GroupVersionResource) (*v1alpha1.TargetConfig, error) {
+func (c *haloCustomConfigLoader) getCNCTargetConfig(ctx context.Context, gvr metav1.GroupVersionResource) (*v1alpha1.TargetConfig, error) {
 	currentCNC, err := c.cncFetcher.GetCNC(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, target := range currentCNC.Status.KatalystCustomConfigList {
+	for _, target := range currentCNC.Status.HaloCustomConfigList {
 		if target.ConfigType == gvr {
 			return &target, nil
 		}
@@ -128,7 +128,7 @@ func (c *katalystCustomConfigLoader) getCNCTargetConfig(ctx context.Context, gvr
 
 // updateConfigCacheIfNeed checks if the previous configuration has changed, and
 // re-get from APIServer if the previous is out-of date.
-func (c *katalystCustomConfigLoader) updateConfigCacheIfNeed(ctx context.Context, targetConfig *v1alpha1.TargetConfig) error {
+func (c *haloCustomConfigLoader) updateConfigCacheIfNeed(ctx context.Context, targetConfig *v1alpha1.TargetConfig) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 

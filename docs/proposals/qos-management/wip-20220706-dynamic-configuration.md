@@ -14,7 +14,7 @@ status: provisional
 
 # Katalyst Dynamic Configuration (TBD)
 
-atalyst Dynamic Configuration i.e. `KatalystCustomConfig` (`KCC` for short) is a general framework to enable each daemon component to dynamically adjust its working status without restarting or re-deploying.
+atalyst Dynamic Configuration i.e. `HaloCustomConfig` (`KCC` for short) is a general framework to enable each daemon component to dynamically adjust its working status without restarting or re-deploying.
 The detailed proposal contents for Katalyst SysAdvisor is ongoing and will be released in the next quarter.
 
 ## Table of Contents

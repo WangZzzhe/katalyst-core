@@ -35,20 +35,20 @@ func StartKCCController(ctx context.Context, controlCtx *katalystbase.GenericCon
 	conf *config.Configuration, _ interface{}, _ string,
 ) (bool, error) {
 	// targetHandler is initialized once and shared by multiple controllers
-	targetHandler := kcctarget.NewKatalystCustomConfigTargetHandler(
+	targetHandler := kcctarget.NewHaloCustomConfigTargetHandler(
 		ctx,
 		controlCtx.Client,
 		conf.ControllersConfiguration.KCCConfig,
-		controlCtx.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+		controlCtx.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 	)
 
-	kccController, err := kcc.NewKatalystCustomConfigController(
+	kccController, err := kcc.NewHaloCustomConfigController(
 		ctx,
 		conf.GenericConfiguration,
 		conf.GenericControllerConfiguration,
 		conf.ControllersConfiguration.KCCConfig,
 		controlCtx.Client,
-		controlCtx.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+		controlCtx.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 		controlCtx.EmitterPool.GetDefaultMetricsEmitter(),
 		targetHandler,
 	)
@@ -57,13 +57,13 @@ func StartKCCController(ctx context.Context, controlCtx *katalystbase.GenericCon
 		return false, err
 	}
 
-	kccTargetController, err := kcc.NewKatalystCustomConfigTargetController(
+	kccTargetController, err := kcc.NewHaloCustomConfigTargetController(
 		ctx,
 		conf.GenericConfiguration,
 		conf.GenericControllerConfiguration,
 		conf.ControllersConfiguration.KCCConfig,
 		controlCtx.Client,
-		controlCtx.InternalInformerFactory.Config().V1alpha1().KatalystCustomConfigs(),
+		controlCtx.InternalInformerFactory.Config().V1alpha1().HaloCustomConfigs(),
 		controlCtx.EmitterPool.GetDefaultMetricsEmitter(),
 		targetHandler,
 	)

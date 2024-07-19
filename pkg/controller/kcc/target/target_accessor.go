@@ -40,9 +40,9 @@ const (
 	targetWorkerCount = 1
 )
 
-// KatalystCustomConfigTargetAccessor is to handle creation/update/delete event of target unstructured obj,
+// HaloCustomConfigTargetAccessor is to handle creation/update/delete event of target unstructured obj,
 // and it can trigger obj re-sync by calling Enqueue function
-type KatalystCustomConfigTargetAccessor interface {
+type HaloCustomConfigTargetAccessor interface {
 	// Start to reconcile obj of kcc target type
 	Start()
 
@@ -59,30 +59,30 @@ type KatalystCustomConfigTargetAccessor interface {
 	Get(namespace, name string) (*unstructured.Unstructured, error)
 }
 
-type DummyKatalystCustomConfigTargetAccessor struct{}
+type DummyHaloCustomConfigTargetAccessor struct{}
 
-func (d DummyKatalystCustomConfigTargetAccessor) Start()                               {}
-func (d DummyKatalystCustomConfigTargetAccessor) Stop()                                {}
-func (d DummyKatalystCustomConfigTargetAccessor) Enqueue(_ *unstructured.Unstructured) {}
-func (d DummyKatalystCustomConfigTargetAccessor) List(_ labels.Selector) ([]*unstructured.Unstructured, error) {
+func (d DummyHaloCustomConfigTargetAccessor) Start()                               {}
+func (d DummyHaloCustomConfigTargetAccessor) Stop()                                {}
+func (d DummyHaloCustomConfigTargetAccessor) Enqueue(_ *unstructured.Unstructured) {}
+func (d DummyHaloCustomConfigTargetAccessor) List(_ labels.Selector) ([]*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
-func (d DummyKatalystCustomConfigTargetAccessor) Get(_, _ string) (*unstructured.Unstructured, error) {
+func (d DummyHaloCustomConfigTargetAccessor) Get(_, _ string) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
-// KatalystCustomConfigTargetHandlerFunc func to process the obj in the work queue
-type KatalystCustomConfigTargetHandlerFunc func(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error
+// HaloCustomConfigTargetHandlerFunc func to process the obj in the work queue
+type HaloCustomConfigTargetHandlerFunc func(gvr metav1.GroupVersionResource, target *unstructured.Unstructured) error
 
 // targetHandlerFuncWithSyncQueue is used to store the handler and
 // syncing queue for each kcc-target
 type targetHandlerFuncWithSyncQueue struct {
-	targetHandlerFunc KatalystCustomConfigTargetHandlerFunc
+	targetHandlerFunc HaloCustomConfigTargetHandlerFunc
 	syncQueue         workqueue.RateLimitingInterface
 }
 
-type RealKatalystCustomConfigTargetAccessor struct {
+type RealHaloCustomConfigTargetAccessor struct {
 	stopCh chan struct{}
 	ctx    context.Context
 
@@ -97,14 +97,14 @@ type RealKatalystCustomConfigTargetAccessor struct {
 	targetHandlerFuncWithSyncQueueMap map[string]targetHandlerFuncWithSyncQueue
 }
 
-// NewRealKatalystCustomConfigTargetAccessor returns a new KatalystCustomConfigTargetAccessor
+// NewRealHaloCustomConfigTargetAccessor returns a new HaloCustomConfigTargetAccessor
 // which is used to handle creation/update/delete event of target unstructured obj, and it can
 // trigger obj re-sync by calling Enqueue function of the returned accessor.
-func NewRealKatalystCustomConfigTargetAccessor(
+func NewRealHaloCustomConfigTargetAccessor(
 	gvr metav1.GroupVersionResource,
 	client dynamic.Interface,
-	handlerInfos map[string]KatalystCustomConfigTargetHandlerFunc,
-) (*RealKatalystCustomConfigTargetAccessor, error) {
+	handlerInfos map[string]HaloCustomConfigTargetHandlerFunc,
+) (*RealHaloCustomConfigTargetAccessor, error) {
 	dynamicInformer := dynamicinformer.NewFilteredDynamicInformer(client,
 		native.ToSchemaGVR(gvr.Group, gvr.Version, gvr.Resource),
 		metav1.NamespaceAll,
@@ -112,7 +112,7 @@ func NewRealKatalystCustomConfigTargetAccessor(
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		nil)
 
-	k := &RealKatalystCustomConfigTargetAccessor{
+	k := &RealHaloCustomConfigTargetAccessor{
 		stopCh:                            make(chan struct{}),
 		gvr:                               gvr,
 		targetLister:                      dynamicInformer.Lister(),
@@ -137,7 +137,7 @@ func NewRealKatalystCustomConfigTargetAccessor(
 	return k, nil
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) Start() {
+func (k *RealHaloCustomConfigTargetAccessor) Start() {
 	// run target informer
 	go k.targetInformer.Run(k.stopCh)
 
@@ -150,7 +150,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) Start() {
 	klog.Infof("target accessor of %s has been started", k.gvr.String())
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) Stop() {
+func (k *RealHaloCustomConfigTargetAccessor) Stop() {
 	klog.Infof("target accessor of %s is stopping", k.gvr.String())
 
 	for _, info := range k.targetHandlerFuncWithSyncQueueMap {
@@ -162,7 +162,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) Stop() {
 
 // Enqueue will add the obj to the work queue of the target handler, if name is empty,
 // it will add the obj to all the work queue of the target handler
-func (k *RealKatalystCustomConfigTargetAccessor) Enqueue(name string, obj *unstructured.Unstructured) {
+func (k *RealHaloCustomConfigTargetAccessor) Enqueue(name string, obj *unstructured.Unstructured) {
 	if len(name) == 0 {
 		k.enqueueTarget(obj)
 		return
@@ -187,7 +187,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) Enqueue(name string, obj *unstr
 	}
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) Get(namespace, name string) (*unstructured.Unstructured, error) {
+func (k *RealHaloCustomConfigTargetAccessor) Get(namespace, name string) (*unstructured.Unstructured, error) {
 	if !k.targetInformer.HasSynced() {
 		return nil, fmt.Errorf("target targetInformer for %s not synced", k.gvr)
 	}
@@ -207,7 +207,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) Get(namespace, name string) (*u
 	return obj.(*unstructured.Unstructured).DeepCopy(), nil
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) List(selector labels.Selector) ([]*unstructured.Unstructured, error) {
+func (k *RealHaloCustomConfigTargetAccessor) List(selector labels.Selector) ([]*unstructured.Unstructured, error) {
 	if !k.targetInformer.HasSynced() {
 		return nil, fmt.Errorf("target targetInformer for %s not synced", k.gvr)
 	}
@@ -224,7 +224,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) List(selector labels.Selector) 
 	return ret, nil
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) addTargetEventHandle(obj interface{}) {
+func (k *RealHaloCustomConfigTargetAccessor) addTargetEventHandle(obj interface{}) {
 	t, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("cannot convert obj to *unstructured.Unstructured: %v", obj)
@@ -235,7 +235,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) addTargetEventHandle(obj interf
 	k.enqueueTarget(t)
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) updateTargetEventHandle(_, new interface{}) {
+func (k *RealHaloCustomConfigTargetAccessor) updateTargetEventHandle(_, new interface{}) {
 	t, ok := new.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("cannot convert obj to *unstructured.Unstructured: %v", new)
@@ -246,7 +246,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) updateTargetEventHandle(_, new 
 	k.enqueueTarget(t)
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) deleteTargetEventHandle(obj interface{}) {
+func (k *RealHaloCustomConfigTargetAccessor) deleteTargetEventHandle(obj interface{}) {
 	t, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("cannot convert obj to *unstructured.Unstructured: %v", obj)
@@ -257,7 +257,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) deleteTargetEventHandle(obj int
 	k.enqueueTarget(t)
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) enqueueTarget(obj *unstructured.Unstructured) {
+func (k *RealHaloCustomConfigTargetAccessor) enqueueTarget(obj *unstructured.Unstructured) {
 	if obj == nil {
 		klog.Warning("trying to enqueue a nil kcc target")
 		return
@@ -274,14 +274,14 @@ func (k *RealKatalystCustomConfigTargetAccessor) enqueueTarget(obj *unstructured
 	}
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) generateWorker(queue targetHandlerFuncWithSyncQueue) func() {
+func (k *RealHaloCustomConfigTargetAccessor) generateWorker(queue targetHandlerFuncWithSyncQueue) func() {
 	return func() {
-		for k.processNextKatalystCustomConfigTargetItem(queue.syncQueue, queue.targetHandlerFunc) {
+		for k.processNextHaloCustomConfigTargetItem(queue.syncQueue, queue.targetHandlerFunc) {
 		}
 	}
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) processNextKatalystCustomConfigTargetItem(queue workqueue.RateLimitingInterface, handler KatalystCustomConfigTargetHandlerFunc) bool {
+func (k *RealHaloCustomConfigTargetAccessor) processNextHaloCustomConfigTargetItem(queue workqueue.RateLimitingInterface, handler HaloCustomConfigTargetHandlerFunc) bool {
 	key, quit := queue.Get()
 	if quit {
 		return false
@@ -300,7 +300,7 @@ func (k *RealKatalystCustomConfigTargetAccessor) processNextKatalystCustomConfig
 	return true
 }
 
-func (k *RealKatalystCustomConfigTargetAccessor) syncHandler(key string, handlerFunc KatalystCustomConfigTargetHandlerFunc) error {
+func (k *RealHaloCustomConfigTargetAccessor) syncHandler(key string, handlerFunc HaloCustomConfigTargetHandlerFunc) error {
 	if !k.targetInformer.HasSynced() {
 		return fmt.Errorf("target targetInformer for %s not synced", k.gvr)
 	}
