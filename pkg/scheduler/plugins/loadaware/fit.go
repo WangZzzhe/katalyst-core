@@ -13,7 +13,7 @@ import (
 )
 
 func (p *Plugin) Filter(_ context.Context, _ *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
-	if p.IsLoadAareEnabled(pod) {
+	if !p.IsLoadAareEnabled(pod) {
 		return nil
 	}
 
